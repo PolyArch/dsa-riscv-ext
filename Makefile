@@ -12,7 +12,7 @@ install-header:
 	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(SS_TOOLS)/include/dsaintrin.h
 
 clean:
-	rm -f riscv-opc.h
+	rm -f riscv-dsa.h
 	rm -f $(SS_TOOLS)/include/ss_insts.h
 	rm -f $(SS_TOOLS)/include/dsaintrin.h
 
