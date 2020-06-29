@@ -3,6 +3,7 @@ all: riscv-dsa.h riscv-dsa.c auto-patch.py install-header
 	./auto-patch.py riscv-dsa.h ../riscv-gnu-toolchain/riscv-binutils/include/opcode/riscv-opc.h \
                   riscv-dsa.c ../riscv-gnu-toolchain/riscv-binutils/opcodes/riscv-opc.c
 
+.PHONY: riscv-dsa.h
 riscv-dsa.h: opcodes-dsa
 	cat opcodes-dsa | ./riscv-opcodes/parse_opcodes -c > $@
 
