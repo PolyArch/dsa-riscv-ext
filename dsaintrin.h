@@ -68,6 +68,12 @@
   __asm__ __volatile__("ss_cfg  %0, %1" : : "r"(mem_addr), "i"(size));
 
 /*!
+ * \brief Drop all the ongoing data request while retaining the configuration.
+ */
+#define SS_RESET() \
+  __asm__ __volatile__("ss_cfg x0, 0");
+
+/*!
  * \brief Configure the padding policy of a memory stream.
  * \param mode: The memory padding policy.
  *              0: No padding
@@ -86,31 +92,93 @@
 #define STRIDE_ZERO_FILL    3
 #define STRIDE_DISCARD_FILL 4
 
-//Reset all live data requests!  (config retained)
-#define SS_RESET() \
-  __asm__ __volatile__("ss_cfg x0, 0");
-
-//Add duplicate port
+/*!
+ * \brief Add a port to stream duplication. Duplicated ports will be reset
+ *        after instantiating a stream. (Let me confirm this)
+ * \param The number of the additional port.
+ */
 #define SS_ADD_PORT(port) \
   __asm__ __volatile__("ss_add_port x0, x0, %0" : : "i"(port))
 
+/*!
+ * \brief Discard a num_elem*elem_size bytes of data from the specific port.
+ * \param output_port: The port to discard the value.
+ * \param num_elem: The number of elements to discard.
+ * \param elem_size: The data size of each element.
+ */
 #define SS_GARBAGE_GENERAL(output_port, num_elem, elem_size) \
   do { \
     int imm = (output_port) << 1; \
     __asm__ __volatile__("ss_wr_dma %0, %1, %2" : : "r"(0), "r"((num_elem) * (elem_size)), "i"(imm)); \
   } while (false) ;
 
+/*!
+ * \brief This is a wrapper for GARBAGE_GENERAL to keep the backward compatibility with
+ *        the decomposability.
+ * \param num_elem: The number of q-word to discard.
+ */
 #define SS_GARBAGE(output_port, num_elem) \
   SS_GARBAGE_GENERAL(output_port, num_elem, 8)
 
-/* DMA */
+/*!
+ * \brief Configure the innermost dimension of the memory access, and instantiate a 
+ *        memory stream.
+ * \param addr: The starting address of the memory stream.
+ * \param acc_size: The size in bytes of access from the starting address.
+ * \param port: The destination of the stream.
+ */
 #define SS_DMA_RD_INNER(addr, acc_size, port) \
   do { \
     __asm__ __volatile__("ss_dma_rd %0, %1, %2" : : "r"(addr), "r"(acc_size), "i"((port) << 1)); \
   } while (false);
 
+/*!
+ * \brief Configure the outer dimensions of the memory access. The dimensions
+ *        should be configured from outer to the inner.
+ * \param stride: The stride of the starting address after finishing the inner dimensions.
+ * \param n: The times of repeating the inner dimensions.
+ * \param stretch: The delta of the trip count of the inner dimensions.
+ * \code{.cpp}
+ *    OUTER(s0, n0, d0)
+ *    OUTER(s1, n1, d1)
+ *    INNER(addr, size, port)
+ *    // which is equivalent to
+ *    for (i=0; i<n0; ++i) {
+ *      char *addr0=addr;
+ *      for (j=0; j<n1; ++j) {
+ *        char *addr1 = addr0;
+ *        for (k=0; k<size; ++i) {
+ *          send *(addr1 + k) to port;
+ *        }
+ *        addr1 += s1;
+ *        size += d1;
+ *      }
+ *      addr0 += s0;
+ *      n1 += d0;
+ *    }
+ * \endcode
+ * \note Though we only support 2D for now. Our ISA is open to extend it to high dimensions.
+ */
 #define SS_DMA_RD_OUTER(stride, n, stretch) \
   __asm__ __volatile__("ss_dma_rd %0, %1, %2" : : "r"(stride), "r"(n), "i"((stretch) << 1 | 1))
+
+/*!
+ * \brief This is a 2-D wrapper of READ_INNER and READ_OUTER to keep the backward compatibility.
+ * \param mem_addr: The starting address.
+ * \param stride: The stride after accessing several countinous bytes;
+ * \param acc_size: The countinous bytes to access.
+ * \param stretch: The delta of the countnous bytes to access after finishing each stride.
+ * \param n_strides: The times of repeating the acc_size.
+ * \param port: The port to forward data stream.
+ */
+#define SS_DMA_READ_STRETCH(mem_addr, stride, acc_size, stretch, n_strides, port ) \
+  do { \
+    SS_DMA_RD_OUTER(stride, n_strides, stretch); \
+    SS_DMA_RD_INNER(mem_addr, acc_size, port); \
+  } while (false);
+
+#define SS_DMA_READ(mem_addr, stride, acc_size, n_strides, port ) \
+  SS_DMA_READ_STRETCH(mem_addr, stride, acc_size, 0, n_strides, port )
 
 #define SS_DMA_WR_INNER(addr, acc_size, port) \
   do { \
@@ -135,8 +203,6 @@
 // need that many bits in any case)
 #define SS_SCR_WR_PART(addr, acc_size, port, part_size) \
   __asm__ __volatile__("ss_wr_scr %0, %1, %2" : : "r"(addr), "r"(acc_size), "i"((port) << 2))
-
-
 
 #define SS_SCR_WR_OUTER(stride, n, stretch) \
   __asm__ __volatile__("ss_wr_scr %0, %1, %2" : : "r"(stride), "r"(n), "i"((stretch) << 2 | 1))
@@ -217,16 +283,6 @@
 //A convienience command for linear access
 #define SS_SCRATCH_READ(scr_addr, n_bytes, port) \
   SS_SCR_PORT_STREAM_STRETCH(scr_addr,0,n_bytes,0,1, port) 
-
-//Read from DMA into a port
-#define SS_DMA_READ_STRETCH(mem_addr, stride, acc_size, stretch, n_strides, port ) \
-  do { \
-    SS_DMA_RD_OUTER(stride, n_strides, stretch); \
-    SS_DMA_RD_INNER(mem_addr, acc_size, port); \
-  } while (false);
-
-#define SS_DMA_READ(mem_addr, stride, acc_size, n_strides, port ) \
-  SS_DMA_READ_STRETCH(mem_addr, stride, acc_size, 0, n_strides, port )
 
 #define SS_DMA_READ_SIMP(mem_addr, num_strides, port ) \
   __asm__ __volatile__("ss_dma_rd    %0, %1, %2" : : "r"(mem_addr), "r"(num_strides), "i"(port)); 
