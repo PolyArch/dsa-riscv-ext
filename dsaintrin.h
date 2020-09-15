@@ -70,6 +70,12 @@
   __asm__ __volatile__("ss_cfg x0, 0")
 
 /*!
+ * \brief Reset all live streams after finishing all ports
+ */
+#define SS_STREAM_RESET() \
+  __asm__ __volatile__("ss_cfg x0, 1");
+
+/*!
  * \brief Configure the padding policy of a memory stream.
  * \param mode: The memory padding policy.
  *              0: No padding
@@ -545,8 +551,8 @@
  * \param addr_type: The data type of the address value (b)
  * \param val_type: The data type of the operand (c)
  * \param output_type: The data type of the result (a)
- * \param val_num: TODO(@were)
- * \param num_dates: TODO(@were)
+ * \param val_num: sizeof(val_type) * val_num together determine the number of bytes to read.
+ * \param num_dates: The number of outputs
  * \param is_update_port: Where the operation happens, 0: near storage units, 1: CGRA.
  */
 #define SS_CONFIG_ATOMIC_SCR_OP(addr_type, val_type, output_type, val_num, num_updates, is_update_port)      \
@@ -575,11 +581,14 @@
  */
 #define SS_ATOMIC_SCR_OP(addr_port, val_port, offset, iters, opcode) \
   __asm__ __volatile__("ss_atom_op %0, %1, %2" : : "r"(offset | addr_port << 24), "r"(iters), "i"((val_port<<3) | opcode<<1 | 1))
- 
 
 /*!
- * \brief 
- * 
+ * \brief Configure an indirect read stream. Something like a[b[i]*k].
+ * \param itype: The data type of the indices (b).
+ * \param dtype: The data type of the value (a).
+ * \param mult: The coefficient of the indices (k).
+ * \param num_elem: num_elem * sizeof(dtype) together determine how many continous bytes to read each time.
+ * \param offset_list: A list (up to 4) of memory offset of accessing data.
  */
 #define SS_CONFIG_INDIRECT_GENERAL(itype,dtype,mult,num_elem,offset_list)  \
   __asm__ __volatile__("ss_cfg_ind %0, %1, %2" : : "r"(offset_list), "r"(num_elem), "i"( (mult<<4) | (itype<<2)  |  (dtype<<0) )  )
@@ -595,57 +604,63 @@
 #define SS_CONFIG_INDIRECT4(itype,dtype,mult,num_elem,o1,o2,o3,o4) \
   SS_CONFIG_INDIRECT_GENERAL(itype,dtype,mult,num_elem, (o1) | (o2) << 8 | (o3) << 16 | (o4) << 24)
 
-
-
-//Write from output to input port  (type -- 3:8-bit,2:16-bit,1:32-bit,0:64-bit)
+/*!
+ * \brief Call after CONFIG_INDIRECT to instantiate an indirect stream.
+ * \param ind_port: The source port of indices.
+ * \param addr_offset: The starting address of the array.
+ * \param num_elem: The length of the address stream.
+ * \param input_port: The destination port of this stream.
+ */
 #define SS_INDIRECT(ind_port, addr_offset, num_elem, input_port)                    \
   __asm__ __volatile__("ss_stride   %0, %1, %2" : : "r"(8), "r"(8), "i"((0<<10)));  \
   __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),  \
                                                   "i"((input_port<<5) | (ind_port)))
 
-// generated streams are with base_addr = ind_port[i] (offset[col_ind],
-// num_elem=num_elem_port[i] (offset[col_ind+1]-offset[col_ind],
-// stride=sequential?)
+/*!
+ * \brief Call after CONFIG_INDIRECT to instantiate an indirect stream with unfixed length.
+ * \param ind_port: The source port of indices.
+ * \param addr_offset: The starting address of the array.
+ * \param stride: The stride after reading access_size bytes.
+ * \param access_size: The continous bytes to read.
+ * \param num_elem_port: The port generates the length of each stream.
+ * \param input_port: The destination of this stream.
+ */
 #define SS_INDIRECT_2D(ind_port, addr_offset, num_elem, stride, access_size, num_elem_port, input_port)           \
   __asm__ __volatile__("ss_stride   %0, %1, %2" : : "r"(stride), "r"(access_size), "i"(num_elem_port | (1<<10))); \
   __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),                                \
                                                   "i"((input_port<<5) | (ind_port)))
 
-// This works for only linear scratchpad right now
+/*! \brief This is similar to INDIRECT_2D but for scratchpad read. */
 #define SS_INDIRECT_SCR_2D(ind_port, addr_offset, num_elem, stride, access_size, num_elem_port, input_port)       \
   __asm__ __volatile__("ss_stride   %0, %1, %2" : : "r"(stride), "r"(access_size), "i"(num_elem_port | (1<<10))); \
   __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),                                \
                                                   "i"((1<<10) | (input_port<<5) | (ind_port)));
 
-// indirect 2d write to main memory
+/*! \brief This is similar to INDIRECT_2D but for scratchpad write. */
 #define SS_INDIRECT_2D_WR(ind_port, addr_offset, num_elem, stride, access_size, num_elem_port, output_port) \
   __asm__ __volatile__("ss_stride   %0, %1, %2" : : "r"(stride), "r"(access_size), "i"(num_elem_port | (1<<10))); \
   __asm__ __volatile__("ss_ind_wr    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),\
                                                   "i"((output_port<<5) | (ind_port)));
  
+/*! \brief This is similar to INDIRECT but for memory write. */
 #define SS_INDIRECT_WR(ind_port, addr_offset, num_elem, output_port) \
   __asm__ __volatile__("ss_ind_wr %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),\
                                                   "i"((output_port<<5) | (ind_port)));
 
+/*! \brief This is similar to INDIRECT_WR but for scratchpad write. */
 #define SS_INDIRECT_WR_SCR(ind_port, addr_offset, num_elem, output_port) \
   __asm__ __volatile__("ss_ind_wr %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),\
                                                   "i"((1<<10) | (output_port<<5) | (ind_port)));
 
 
-//Write from output to input port  (type -- 3:8-bit,2:16-bit,1:32-bit,0:64-bit)
+/*! \brief This is similar to INDIRECT but for scratchpad read. */
 #define SS_INDIRECT_SCR(ind_port, addr_offset, num_elem, input_port) \
   __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),\
                                                   "i"((1<<10) | (input_port<<5) | (ind_port)));
 
 
-// currently map type can only be 0 (wrap_size = wrap_size*part_size)
-// #define SS_CONFIG_MEM_MAP(part_size, active_core_bv, wrap_size, map_type) \
-//   __asm__ __volatile__("ss_cfg_mmap %0, %1, %2" : : "r"(part_size), "r"(active_core_bv), "i"(wrap_size << 2 | map_type));
-
 #define SS_CONFIG_MEM_MAP(part_size, active_core_bv, map_type) \
   __asm__ __volatile__("ss_cfg_mmap %0, %1, %2" : : "r"(part_size), "r"(active_core_bv), "i"(map_type));
-
-
 
 
 #define PART_CORE_BANK_REST 0
@@ -653,41 +668,45 @@
 #define CORE_PART_BANK_REST 2 // this one works only for power of 2 data-structure sizes
 
 
-//Reset all live streams! (after finishing all ports -- config retained)
-#define SS_STREAM_RESET() \
-  __asm__ __volatile__("ss_cfg x0, 1");
-
-//Wait on N number of remote scratchpad writes (num_bytes)
+/*!
+ * \brief Wait for several elements write to the sratchpad.
+ * \param num_rem_writes: 
+ * \param scratch_type: 
+ */
 #define SS_WAIT_DF(num_rem_writes, scratch_type) \
   __asm __volatile__("ss_wait_df %0, %1" : : "r"(num_rem_writes), "i"(scratch_type));
 
-//Wait with custom bit vector -- probably don't need to use
-#define SS_WAIT(bit_vec) \
-  __asm__ __volatile__("ss_wait t0, t0, " #bit_vec); \
-
-//Wait for all softbrain commands and computations to be visible to memory from control core 
+/*! \brief Block the control host and wait everything done on the accelerator. */
 #define SS_WAIT_ALL() \
   __asm__ __volatile__("ss_wait t0, t0, 0" : : : "memory"); \
 
-//Wait for all prior scratch writes to be complete.
+#define SS_WAIT(bit_vec) \
+  __asm__ __volatile__("ss_wait t0, t0, " #bit_vec); \
+
+/*!
+ * \brief All the sratch operations will not be issued until all the scratch write before this 
+ *        fence retire.
+ */
 #define SS_WAIT_SCR_WR() \
   __asm__ __volatile__("ss_wait t0, t0, 1"); \
 
-//wait for everything except outputs to be complete. (useful for debugging)
+/*!
+ * \brief All the operations will not be issued until all the computations on the accelerator retire.
+ */
 #define SS_WAIT_COMPUTE() \
   __asm__ __volatile__("ss_wait t0, t0, 2" : : : "memory"); \
 
-//wait for all prior scratch reads to be complete
+/*!
+ * \brief All the sratch operations will not be issued until all the scratch read before this 
+ *        fence retire.
+ */
 #define SS_WAIT_SCR_RD() \
   __asm__ __volatile__("ss_wait t0, t0, 4"); \
 
+// TODO(@were): Confirm this with vidushi.
 //wait for all prior scratch reads to be complete (128*8?)
 #define SS_GLOBAL_WAIT(num_threads) \
   __asm__ __volatile__("ss_wait %0, t0, 128" :: "r"(num_threads)); \
-
-
-// #define SS_GLOBAL_WAIT() \
-//  __asm__ __volatile__("ss_wait t0, t0, 128"); \
 
 //wait for all prior scratch reads to be complete (NOT IMPLEMENTED IN SIMULTOR YET)
 #define SS_WAIT_SCR_RD_QUEUED() \
@@ -700,11 +719,7 @@
 #define SS_WAIT_SCR_ATOMIC() \
   __asm__ __volatile__("ss_wait t0, t0, 32"); \
 
-// wait on all threads -- stall core
-// TODO: have this use num_threads
-// #define SS_GLOBAL_WAIT(num_threads) \
-//  __asm__ __volatile__("ss_wait t0, t0, 128"); \
-
+// TODO(@were): Confirm this with vidushi.
 // wait on all threads -- stall core
 #define SS_WAIT_STREAMS() \
   __asm__ __volatile__("ss_wait t0, t0, 66"); \
@@ -715,18 +730,13 @@
 #define P_IND_2 (30)
 #define P_IND_3 (29)
 #define P_IND_4 (28)
-//TODO: make indirect ports also 1-byte
 #define P_IND_5 (27)
-// #define P_IND_6 (26)
 
 //Convenience ports for these functions
 #define MEM_SCR_PORT (23)
 #define SCR_MEM_PORT (24)
 #define SCR_SCR_PORT (25)
 #define SCR_REM_PORT (26)
-
-// #define NET_ADDR_PORT (25)
-// #define NET_VAL_PORT (32)
 
 // TODO(@were): Confirm if this is used.
 #define SS_SCR_WR_PART(addr, acc_size, port, part_size) \
