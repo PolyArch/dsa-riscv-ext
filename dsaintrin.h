@@ -580,7 +580,7 @@
  *                TODO(@were): What happens when something happens in CGRA (is_update).
  */
 #define SS_ATOMIC_SCR_OP(addr_port, val_port, offset, iters, opcode) \
-  __asm__ __volatile__("ss_atom_op %0, %1, %2" : : "r"(offset | addr_port << 24), "r"(iters), "i"((val_port<<3) | opcode<<1 | 1))
+  __asm__ __volatile__("ss_atom_op %0, %1, %2" : : "r"(offset | addr_port << 24), "r"(iters), "i"((val_port<<2) | opcode))
 
 /*!
  * \brief Configure an indirect read stream. Something like a[b[i]*k].
