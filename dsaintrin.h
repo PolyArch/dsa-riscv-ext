@@ -177,11 +177,18 @@
     SS_DMA_RD_INNER(mem_addr, acc_size, port);                                     \
   } while (false)
 
+
 /*!
  * \brief This is a wrapper for DMA_READ_STRETCH to keep backward-compatibility.
  */
 #define SS_DMA_READ(mem_addr, stride, acc_size, n_strides, port) \
   SS_DMA_READ_STRETCH(mem_addr, stride, acc_size, 0, n_strides, port )
+
+/*!
+ * \brief Read the given bytes data from the starting address to the given port.
+ */
+#define SS_LINEAR_READ(mem_addr, bytes, port) \
+  SS_DMA_READ(mem_addr, 0, bytes, 1, port)
 
 /*!
  * \brief The semantics is similar to DMA_RD_INNER but for memory write.
@@ -203,6 +210,13 @@
     SS_DMA_WR_OUTER(stride, n_strides, 0);                               \
     SS_DMA_WR_INNER(mem_addr, acc_size, output_port);                    \
   } while (false)
+
+/*!
+ * \brief Write the given bytes of data from the output port to starting from the
+          given address.
+ */
+#define SS_LINEAR_WRITE(output_port, mem_addr, acc_size) \
+  SS_DMA_WRITE(output_port, 0, acc_size, 1, mem_addr)
 
 /*!
  * \brief The semantics is similar to DMA_RD_INNER but for scratchpad read.
