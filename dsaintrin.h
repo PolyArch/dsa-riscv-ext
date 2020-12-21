@@ -1,7 +1,6 @@
 /*!
  * \file dsaintrin.h
- * \author PolyArch Research Lab (you@domain.com)
- * \date 2020-09-12
+ * \author PolyArch Research Lab
  * \copyright Copyright (c) 2020
  */
 
