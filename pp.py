@@ -24,11 +24,11 @@ def binary(name, ty, args, op0, op1, funct3):
             res.append(rule[ty][arg])
     res = [name]
     args = args.split(',')
-    do_operand(res, 'rd', args, ty)
     do_operand(res, 'rs1', args, ty)
     do_operand(res, 'rs2', args, ty)
     do_operand(res, 'imm', args, ty)
     res.append('14..12=%s' % funct3)
+    do_operand(res, 'rd', args, ty)
     res.append('6..5=%s' % op0)
     res.append('4..2=%s' % op1)
     res.append('1..0=3')
@@ -59,7 +59,7 @@ with open(sys.argv[1], 'r') as ext,   \
     for raw in ext.readlines():
         raw = raw.strip()
         if '#' in raw:
-            raw = raw[raw.index('#')+1:]
+            raw = raw[:raw.index('#')]
         if not raw:
             continue
         raw = [i for i in raw.split() if i]
