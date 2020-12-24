@@ -6,9 +6,5 @@ There is no point to commit our ISA extension to a forked
 The scripts here will apply the just extended patch to the
 `riscv-gnu-toolchain` repo.
 
-| opcode|
-|:-----:|
-| 0 | 2 |
-| 1 | 2 |
-| 2 | 2 |
-| 3 | 2 |
+|funct3 | 14..12 | .. | .. | .. |6..5|4..2|
+| 0     | 2      | 3  | 4  | 6  |  0 | 2  |
