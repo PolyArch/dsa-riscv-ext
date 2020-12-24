@@ -7,4 +7,5 @@ The scripts here will apply the just extended patch to the
 `riscv-gnu-toolchain` repo.
 
 |funct3 | 14..12 | .. | .. | .. |6..5|4..2|
+|-------|--------|----|----|----|----|----|
 | 0     | 2      | 3  | 4  | 6  |  0 | 2  |
