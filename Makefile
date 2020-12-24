@@ -1,4 +1,5 @@
 all: riscv-dsa.h riscv-dsa.c auto-patch.py install-header
+	cd ../riscv-gnu-toolchain/riscv-binutils && git stash && git stash clear
 	./auto-patch.py riscv-dsa.h ../riscv-gnu-toolchain/riscv-binutils/include/opcode/riscv-opc.h \
                     riscv-dsa.c ../riscv-gnu-toolchain/riscv-binutils/opcodes/riscv-opc.c
 

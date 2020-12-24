@@ -51,7 +51,7 @@ def asmtext(name, ty, args, op0, op1, funct3):
     res.append(padspace('"%s"' % ','.join(operands), 8))
     res.append(padspace('MATCH_' + name.upper(), 24))
     res.append(padspace('MATCH_' + name.upper(), 24))
-    return '{%s, INSN_CLASS_I, %s, %s, %s, match_opcode, 0},' % tuple(res)
+    return '{%s, 0, INSN_CLASS_I, %s, %s, %s, match_opcode, 0},' % tuple(res)
 
 with open(sys.argv[1], 'r') as ext,   \
      open(sys.argv[2], 'w') as afile, \
