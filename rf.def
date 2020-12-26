@@ -1,0 +1,34 @@
+MACRO(ZERO)      // zero register 
+MACRO(TBC)       // accelerators To Be Configured
+MACRO(CSA)       // Configuration Starting Address
+MACRO(CFS)       // ConFiguration Size in bytes
+MACRO(CSR)       // Control State Register) encodes control states in 32 bits
+MACRO(SAR)       // Starting AddRess of linear memory streams
+MACRO(L1D)       // Length of a 1D stream
+MACRO(E2D)       // length strEtch of a 2D stream 
+MACRO(I2D)       // strIde of a 2D stream 
+MACRO(L2D)       // Length (trip count) of a 2D stream's outer loop
+MACRO(DE2D)      // Delta on strEtch 2D of a 3d stream
+MACRO(DI2D)      // Delta on strIde 2D of a 3d stream
+MACRO(E3D1D)     // strEtch of a 3D stream affects the 1st-Dimension
+MACRO(E3D2D)     // strEtch of a 3D stream affects the 2nd-Dimension
+MACRO(I3D)       // strIde of a 3D stream
+MACRO(L3D)       // Length (trip count) of a 3D stream's outer-most loop
+MACRO(INDP)      // INDirect Ports encoded compactly in 32 bits
+MACRO(ISL)       // Index Stream Length
+MACRO(IL1D)      // Indirect Length of 1D stream
+MACRO(IL2D)      // Indirect Length of 2D stream
+MACRO(ILV)       // Indirect Length of Value stream
+MACRO(BR)        // allocated Buffet address Range encoded in 32 bits
+MACRO(BSR)       // Buffet State Register) encodes buffet configuration info in 32 bits
+MACRO(OFL)       // OFfset List (up to 4) accessed by an indirect stream
+MACRO(VSR)       // Vector State Register) encodes vector state
+MACRO(RPT)       // RePeaT times of each port element
+MACRO(ERPT)      // strEtch of RePeaT times
+MACRO(EPRD)      // apply the strEtch according to the PeRioD
+MACRO(RESERVED0)
+MACRO(RESERVED1)
+MACRO(RESERVED2)
+MACRO(RESERVED3)
+MACRO(RESERVED4)
+MACRO(TOTAL_REG)

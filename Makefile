@@ -15,11 +15,15 @@ riscv-dsa.h: opcodes-dsa
 install-header:
 	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(SS_TOOLS)/include/ss_insts.h
 	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(SS_TOOLS)/include/dsaintrin.h
+	ln -sf `git rev-parse --show-toplevel`/rf.h $(SS_TOOLS)/include/dsa/rf.h
+	ln -sf `git rev-parse --show-toplevel`/rf.def $(SS_TOOLS)/include/dsa/rf.def
 
 clean:
 	rm -f opcodes-dsa
 	rm -f riscv-dsa.h riscv-dsa.c
 	rm -f $(SS_TOOLS)/include/ss_insts.h
 	rm -f $(SS_TOOLS)/include/dsaintrin.h
+	rm -f $(SS_TOOLS)/include/dsa/rf.h
+	rm -f $(SS_TOOLS)/include/dsa/rf.def
 	cd ../riscv-gnu-toolchain/riscv-binutils && git stash && git stash clear
 
