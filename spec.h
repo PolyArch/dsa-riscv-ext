@@ -27,14 +27,14 @@
  * \brief The max number of DSA input ports across all the lanes supported
  */
 #ifndef DSA_MAX_IN_PORTS
-#define DSA_MAX_IN_PORTS 128
+#define DSA_MAX_IN_PORTS DSA_MAX_PORTS
 #endif
 
 /*!
  * \brief The max number of DSA output ports across all the lanes supported
  */
 #ifndef DSA_MAX_OUT_PORTS
-#define DSA_MAX_OUT_PORTS 128
+#define DSA_MAX_OUT_PORTS DSA_MAX_PORTS
 #endif
 
 /*!
@@ -55,5 +55,5 @@
  * \brief The unit of addressable memory of the DSA
  */
 #ifndef DSA_ADDRESSABLE_MEM
-#define DSA_ADDRESSABLE_MEM 8
+#define DSA_ADDRESSABLE_MEM 1
 #endif
