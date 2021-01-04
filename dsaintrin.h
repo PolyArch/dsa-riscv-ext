@@ -14,6 +14,7 @@
 #define SENTINAL16 (((uint16_t)1)<<15)
 #define SENTINAL32 (((uint32_t)1)<<31)
 
+
 /*!
  * \brief The immediate value version of SS_CONTEXT.
  * \param bitmask: The bit mask of configuration.
@@ -43,6 +44,18 @@
     __asm__ __volatile__("ss_cfg_param %0, %1, %2" : : "r"(val1), "r"(val2), "i"(mask)); \
   } while (false)
 
+/*! brief log of 2. Do give a perfect power of 2. */
+#define _LOG2(x) ((x) ? ((31) - __builtin_clz((uint32_t)(x))) : 0)
+
+/*! \brief Config the data type of the on coming stream. */
+#define CONFIG_DTYPE(direct, indirect)                       \
+  do {                                                       \
+    int direct_ = _LOG2((direct) / DSA_ADDRESSABLE_MEM);     \
+    int indirect_ = _LOG2((indirect) / DSA_ADDRESSABLE_MEM); \
+    uint64_t value = (direct_) | ((indirect_) << 2);         \
+    _CONFIG_PARAM_IMPL(DSARF::CSR, value, 1, 0, 0, 0);       \
+  } while (false)
+
 /*!
  * \brief Configure the predicate of control code broadcasting.
  * \param bitmask: The bit mask of configuration.
@@ -52,14 +65,14 @@
  *       scratchpad.
  */
 #define SS_CONTEXT(bitmask) \
-  _CONFIG_PARAM_IMPL(DSARF::TBC, bitmask, 1, DSARF::ZERO, 0, 0)
+  _CONFIG_PARAM_IMPL(DSARF::TBC, bitmask, 1, DSARF::ZERO, 0)
 
 /*!
  * \brief A wrapper of SS_CONTEXT to configure the predicate of a specific lane.
  * \param core_id: The number of the lane to be enabled
  */
 #define SS_SET_ACCEL(core_id) \
-  SS_CONTEXT(1<<core_id)
+  SS_CONTEXT(1 << (core_id))
 
 /*!
  * \brief Configure the spatial architecture.
@@ -67,44 +80,149 @@
  * \param addr: The array of bitstream of spatial architecture configuration.
  * \param size: The size of the configuration array in bytes.
  */
-#define SS_CONFIG(addr, size)                                                            \
+#define SS_CONFIG(addr, size) \
   _CONFIG_PARAM_IMPL(DSARF::CSA, addr, 0, DSARF::CFS, size, 0)
 
 /*!
  * \brief Drop all the ongoing data request while retaining the configuration.
  */
-#define SS_RESET() \
-  SS_CONFIG(0, 0)
+#define SS_RESET() SS_CONFIG(0, 0)
 
 /*!
  * \brief Reset all live streams after finishing all ports
  */
-#define SS_STREAM_RESET() \
-  SS_CONFIG(0, 1)
+#define SS_STREAM_RESET() SS_CONFIG(0, 1)
 
+
+/*!
+ * \brief Set the registers that related to 1-d stream.
+ * \param start Register SAR
+ * \param length Register L1D
+ */
+#define _CONFIG_1D_STREAM(start, length) \
+  _CONFIG_PARAM_IMPL(DSARF::SAR, start, 0, DSARF::L1D, length, 0)
+
+/*!
+ * \brief Instantiate a linear stream
+ * \param port The source/destination port
+ * \param padding The mode of padding. Refer rf.h:Padding for more details.
+ *                If it is a write stream, this is useless. Use 0 as a placeholder.
+ * \param action 0: access; 1: generate the affine linear value sequence to the port.
+ * \param dimension (d+1)=the number of dimensions of the stream.
+ *        For now, 1,2,and 3-d are supported.
+ * \param operation 0: read, 1: write, 2-7: atomic +, -, *, /, min, and max.
+ * \param memory 0: memory, 1: spad.
+ */
 #define _LINEAR_STREAM_MASK(port, padding, action, dimension, operation, memory)  \
   ((((port) & 127) << 10) | (((padding) & 1) << 7) | (((action) & 1) << 6) |      \
    (((dimension) & 3) << 4) | (((operation) & 7) << 1) | ((memory) & 1))
 
+enum MemoryOperation {
+  Read,
+  Write,
+  AtomAdd,
+  AtomSub,
+  AtomMul,
+  AtomDiv,
+  AtomMax,
+  AtomMin,
+};
+
+enum StreamAction {
+  Access,
+  Generate
+};
+
+enum MemoryType {
+  DMA,
+  SPAD
+};
+
+#define _INSTANTIATE_1D_STREAM(addr, bytes, port, padding, action, operation, memory) \
+  do {                                                                                \
+    CONFIG_DTYPE(DSA_ADDRESSABLE_MEM, 0);                                             \
+    _CONFIG_1D_STREAM(addr, (bytes) / DSA_ADDRESSABLE_MEM);                           \
+    uint64_t value =                                                                  \
+       _LINEAR_STREAM_MASK(port, padding,                                             \
+                           action, /*1d*/0, operation, memory);                       \
+    __asm__ __volatile__("ss_lin_strm %0" : : "r"(value));                            \
+  } while (false)
+
 /*!
  * \brief addr[0:bytes] -> port
  */
-#define SS_LINEAR1D_READ(addr, bytes, port, padding) \
-  do { \
-  	_CONFIG_PARAM_IMPL(DSARF::SAR, addr, 0, DSARF::L1D, (bytes) / DSA_ADDRESSABLE_MEM, 0);          \
-    uint64_t value = _LINEAR_STREAM_MASK(port, padding, /*access*/0, /*1d*/0, /*read*/0, /*mem*/0); \
-    __asm__ __volatile__("ss_lin_strm %0" : : "r"(value));                                          \
-  } while (false)
+#define SS_DMA_1D_READ(addr, bytes, port, padding)   \
+  _INSTANTIATE_1D_STREAM(addr, bytes, port, padding, \
+                         StreamAction::Access,       \
+                         MemoryOperation::Read,      \
+                         MemoryType::DMA)
 
 /*!
  * \brief port -> addr[0:bytes]
  */
-#define SS_LINEAR1D_WRITE(port, addr, bytes) \
-  do { \
-  	_CONFIG_PARAM_IMPL(DSARF::SAR, addr, 0, DSARF::L1D, (bytes) / DSA_ADDRESSABLE_MEM, 0);                 \
-    uint64_t value = _LINEAR_STREAM_MASK(port, Padding::NoPadding, /*access*/0, /*1d*/0, /*write*/1, /*mem*/0); \
-    __asm__ __volatile__("ss_lin_strm %0" : : "r"(value));                                                 \
+#define SS_DMA_1D_WRITE(port, addr, bytes)       \
+  _INSTANTIATE_1D_STREAM(addr, bytes, port,      \
+                         Padding::NoPadding,     \
+                         StreamAction::Access,   \
+                         MemoryOperation::Write, \
+                         MemoryType::DMA)
+
+
+#define _CONFIG_2D_STREAM(addr, stride, bytes, stretch, n) \
+  do {                                                     \
+    auto bytes_ = (bytes) / DSA_ADDRESSABLE_MEM;           \
+    auto stride_ = (stride) / DSA_ADDRESSABLE_MEM;         \
+    auto stretch_ = (stretch) / DSA_ADDRESSABLE_MEM;       \
+    _CONFIG_1D_STREAM(addr, bytes_);                       \
+  	_CONFIG_PARAM_IMPL(DSARF::E2D, stretch_, 0,            \
+                       DSARF::L2D, n, 0);                  \
+  	_CONFIG_PARAM_IMPL(DSARF::I2D, stride_, 0,             \
+                       0, 0, 0);                           \
   } while (false)
+
+#define _INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, padding, action, op, mem) \
+  do {                                                                                          \
+    _CONFIG_2D_STREAM(addr, stride, bytes, stretch, n);                                         \
+    uint64_t value = _LINEAR_STREAM_MASK(port, padding,                                         \
+                                         action, /*2d*/1, op, mem);                             \
+    __asm__ __volatile__("ss_lin_strm %0" : : "r"(value));                                      \
+  } while (false)
+
+/*!
+ * \brief Instantiate a 2-d DMA read stream.
+ */
+#define SS_DMA_2D_READ(addr, stride, bytes, stretch, n, port, padding)   \
+  _INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, padding, \
+                         StreamAction::Access,                           \
+                         MemoryOperation::Read,                          \
+                         MemoryType::DMA)
+/*!
+ * \brief Legacy wrapper of a 2-d stream with stretch.
+ */
+#define SS_DMA_READ_STRETCH(addr, stride, acc_size, stretch, n, port ) \
+  SS_DMA_2D_READ(addr, stride, acc_size, stretch, n, port, 0)
+
+/*!
+ * \brief Legacy wrapper of a 2-d stream without stretch.
+ */
+#define SS_DMA_READ(addr, stride, bytes, n, port) \
+  SS_DMA_2D_READ(addr, stride, bytes, 0, n, port, 0)
+
+/*!
+ * \brief Instantiate a 2-d DMA write stream.
+ */
+#define SS_DMA_2D_WRITE(addr, stride, bytes, stretch, n, port)  \
+  _INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, \
+                         Padding::NoPadding,                    \
+                         StreamAction::Access,                  \
+                         MemoryOperation::Write,                \
+                         MemoryType::DMA)
+
+/*!
+ * \brief This is a wrapper for DMA_WR_INNER and DMA_WR_OUTER to keep bardward compatibility.
+ */
+#define SS_DMA_WRITE(port, stride, bytes, n, addr) \
+   SS_DMA_2D_WRITE(addr, stride, bytes, 0, n, port)
 
 
 /*!
@@ -130,108 +248,6 @@
 /*! \brief Block the control host and wait everything done on the accelerator. */
 #define SS_WAIT_ALL() \
   __asm__ __volatile__("ss_wait x0, %0" : : "i"(2)); \
-
-/*!
- * \brief Configure the innermost dimension of the memory access, and instantiate a 
- *        memory stream.
- * \param addr: The starting address of the memory stream.
- * \param acc_size: The size in bytes of access from the starting address.
- * \param port: The destination of the stream.
- */
-#define SS_DMA_RD_INNER(addr, acc_size, port) \
-  __asm__ __volatile__("ss_dma_rd %0, %1, %2" : : "r"(addr), "r"(acc_size), "i"((port) << 1))
-
-/*!
- * \brief Configure the outer dimensions of the memory access. The dimensions
- *        should be configured from outer to the inner.
- * \param stride: The stride of the starting address after finishing the inner dimensions.
- * \param n: The times of repeating the inner dimensions.
- * \param stretch: The delta of the trip count of the inner dimensions.
- * \code{.cpp}
- *    OUTER(s0, n0, d0)
- *    OUTER(s1, n1, d1)
- *    INNER(addr, size, port)
- *    // which is equivalent to
- *    for (i=0; i<n0; ++i) {
- *      char *addr0=addr;
- *      for (j=0; j<n1; ++j) {
- *        char *addr1 = addr0;
- *        for (k=0; k<size; ++i) {
- *          send *(addr1 + k) to port;
- *        }
- *        addr1 += s1;
- *        size += d1;
- *      }
- *      addr0 += s0;
- *      n1 += d0;
- *    }
- * \endcode
- * \note Though we only support 2D for now. Our ISA is open to extend it to high dimensions.
- */
-#define SS_DMA_RD_OUTER(stride, n, stretch) \
-  __asm__ __volatile__("ss_dma_rd %0, %1, %2" : : "r"(stride), "r"(n), "i"((stretch) << 1 | 1))
-
-/*!
- * \brief This is a 2-D wrapper of READ_INNER and READ_OUTER to keep the backward compatibility.
- * \param mem_addr: The starting address.
- * \param stride: The stride after accessing several countinous bytes;
- * \param acc_size: The countinous bytes to access.
- * \param stretch: The delta of the countnous bytes to access after finishing each stride.
- * \param n_strides: The times of repeating the acc_size.
- * \param port: The port to forward data stream.
- */
-#define SS_DMA_READ_STRETCH(mem_addr, stride, acc_size, stretch, n_strides, port ) \
-  do {                                                                             \
-    SS_DMA_RD_OUTER(stride, n_strides, stretch);                                   \
-    SS_DMA_RD_INNER(mem_addr, acc_size, port);                                     \
-  } while (false)
-
-
-/*!
- * \brief This is a wrapper for DMA_READ_STRETCH to keep backward-compatibility.
- */
-#define SS_DMA_READ(mem_addr, stride, acc_size, n_strides, port) \
-  SS_DMA_READ_STRETCH(mem_addr, stride, acc_size, 0, n_strides, port )
-
-/*!
- * \brief The semantics is similar to DMA_RD_INNER but for memory write.
- */
-#define SS_DMA_WR_INNER(addr, acc_size, port) \
-  __asm__ __volatile__("ss_wr_dma %0, %1, %2" : : "r"(addr), "r"(acc_size), "i"((port) << 1))
-
-/*!
- * \brief The semantics is similar to DMA_RD_OUTER but for memory write.
- */
-#define SS_DMA_WR_OUTER(stride, n, stretch) \
-  __asm__ __volatile__("ss_wr_dma %0, %1, %2" : : "r"(stride), "r"(n), "i"((stretch) << 1 | 1))
-
-/*!
- * \brief This is a wrapper for DMA_WR_INNER and DMA_WR_OUTER to keep bardward compatibility.
- */
-#define SS_DMA_WRITE(output_port, stride, acc_size, n_strides, mem_addr) \
-  do {                                                                   \
-    SS_DMA_WR_OUTER(stride, n_strides, 0);                               \
-    SS_DMA_WR_INNER(mem_addr, acc_size, output_port);                    \
-  } while (false)
-
-/*!
- * \brief Write the given bytes of data from the output port to starting from the
-          given address.
- */
-#define SS_LINEAR_WRITE(output_port, mem_addr, acc_size) \
-  SS_DMA_WRITE(output_port, 0, acc_size, 1, mem_addr)
-
-/*!
- * \brief The semantics is similar to DMA_RD_INNER but for scratchpad read.
- */
-#define SS_SCR_RD_INNER(addr, acc_size, port) \
-  __asm__ __volatile__("ss_scr_rd %0, %1, %2" : : "r"(addr), "r"(acc_size), "i"((port) << 2))
-
-/*!
- * \brief The semantics is similar to DMA_RD_INNER but for scratchpad read.
- */
-#define SS_SCR_RD_OUTER(stride, n, stretch) \
-  __asm__ __volatile__("ss_scr_rd %0, %1, %2" : : "r"(stride), "r"(n), "i"((stretch) << 2 | 1))
 
 
 /*!
