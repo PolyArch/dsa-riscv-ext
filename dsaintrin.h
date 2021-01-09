@@ -113,9 +113,9 @@
  * \param operation 0: read, 1: write, 2-7: atomic +, -, *, /, min, and max.
  * \param memory 0: memory, 1: spad.
  */
-#define _LINEAR_STREAM_MASK(port, padding, action, dimension, operation, memory)  \
-  ((((port) & 127) << 10) | (((padding) & 1) << 7) | (((action) & 1) << 6) |      \
-   (((dimension) & 3) << 4) | (((operation) & 7) << 1) | ((memory) & 1))
+#define _LINEAR_STREAM_MASK(port, padding, action, dimension, operation, memory, signal)  \
+  ((((port) & 127) << 12) | (((padding) & 1) << 9) | (((action) & 1) << 8) |              \
+   (((dimension) & 3) << 6) | (((operation) & 7) << 3) | ((memory) & 1) << 2) | ((signal) & 3)
 
 enum MemoryOperation {
   Read,
@@ -140,22 +140,25 @@ enum MemoryType {
 
 #define _INSTANTIATE_1D_STREAM(addr, bytes, port, padding, action, operation, memory) \
   do {                                                                                \
+    int64_t bytes_ = bytes;                                                           \
+    int signal = bytes_ < 0 ? -1 : bytes_ > 0;                                        \
+    bytes_ = bytes_ < 0 ? -bytes_ : bytes_;                                           \
     CONFIG_DTYPE(DSA_ADDRESSABLE_MEM, 0);                                             \
-    _CONFIG_1D_STREAM(addr, (bytes) / DSA_ADDRESSABLE_MEM);                           \
+    _CONFIG_1D_STREAM(addr, bytes_ / DSA_ADDRESSABLE_MEM);                            \
     uint64_t value =                                                                  \
        _LINEAR_STREAM_MASK(port, padding,                                             \
-                           action, /*1d*/0, operation, memory);                       \
+                           action, /*1d*/0, operation, memory, signal);               \
     __asm__ __volatile__("ss_lin_strm %0" : : "r"(value));                            \
   } while (false)
 
 /*!
  * \brief addr[0:bytes] -> port
  */
-#define SS_DMA_1D_READ(addr, bytes, port, padding)   \
-  _INSTANTIATE_1D_STREAM(addr, bytes, port, padding, \
-                         StreamAction::Access,       \
-                         MemoryOperation::Read,      \
-                         MemoryType::DMA)
+#define SS_DMA_1D_READ(addr, bytes, port, padding)     \
+    _INSTANTIATE_1D_STREAM(addr, bytes, port, padding, \
+                           StreamAction::Access,       \
+                           MemoryOperation::Read,      \
+                           MemoryType::DMA);
 
 /*!
  * \brief port -> addr[0:bytes]
@@ -170,7 +173,7 @@ enum MemoryType {
 
 #define _CONFIG_2D_STREAM(addr, stride, bytes, stretch, n) \
   do {                                                     \
-    auto bytes_ = (bytes) / DSA_ADDRESSABLE_MEM;           \
+    auto bytes_ = (bytes);                                 \
     auto stride_ = (stride) / DSA_ADDRESSABLE_MEM;         \
     auto stretch_ = (stretch) / DSA_ADDRESSABLE_MEM;       \
     _CONFIG_1D_STREAM(addr, bytes_);                       \
@@ -183,8 +186,10 @@ enum MemoryType {
 #define _INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, padding, action, op, mem) \
   do {                                                                                          \
     _CONFIG_2D_STREAM(addr, stride, bytes, stretch, n);                                         \
+    int64_t bytes_ = bytes;                                                                     \
+    int signal = bytes_ < 0 ? -1 : bytes_ > 0;                                                  \
     uint64_t value = _LINEAR_STREAM_MASK(port, padding,                                         \
-                                         action, /*2d*/1, op, mem);                             \
+                                         action, /*2d*/1, op, mem, signal);                     \
     __asm__ __volatile__("ss_lin_strm %0" : : "r"(value));                                      \
   } while (false)
 
@@ -245,9 +250,33 @@ enum MemoryType {
 #define SS_GARBAGE(output_port, num_elem) \
   SS_GARBAGE_GENERAL(output_port, num_elem, 8)
 
+/*! \brief Insert a barrier for the accelerator. Refer rf.h to see the masks. */
+#define SS_WAIT(mask) __asm__ __volatile__("ss_wait x0, %0" : : "i"(mask))
+
 /*! \brief Block the control host and wait everything done on the accelerator. */
-#define SS_WAIT_ALL() \
-  __asm__ __volatile__("ss_wait x0, %0" : : "i"(2)); \
+#define SS_WAIT_ALL() SS_WAIT(~0ull)
+
+/*!
+ * \brief Configure repeat register of the next instantiated input stream.
+ * \param port The port to be configured.
+ * \param stretch The field of the port to be configured.
+ * \param value The value to the field to be set
+ */
+#define SS_CONFIG_PORT(port, field, value)                                \
+  do {                                                                    \
+    uint64_t mask = port;                                                 \
+    mask <<= 1;                                                           \
+    mask = (mask << 4) | (field);                                         \
+    __asm__ __volatile__("ss_cfg_port %0, %1" : : "r"(value), "i"(mask)); \
+  } while (false)
+
+#define PORT_BROADCAST      0
+#define PORT_REPEAT         1
+#define PORT_REPEAT_STRETCH 2
+#define PORT_STRETCH_PERIOD 3
+
+/*! \brief The next stream instantiated from this port will be repeated n times. */
+#define SS_REPEAT_PORT(port, n) SS_CONFIG_PORT(port, PORT_REPEAT, n)
 
 
 /*!
@@ -439,39 +468,6 @@ enum MemoryType {
 //   __asm__ __volatile__("ss_set_iter %0 " : : "r"(iters)); \
 //   __asm__ __volatile__("ss_const %0, %1, %2 " : : "r"(val1), "r"(v1_repeat), "i"(port|(1<<7) | ((dtype+1) << 8))); \
 //   __asm__ __volatile__("ss_const %0, %1, %2 " : : "r"(val2), "r"(v2_repeat), "i"(port|(1<<6) | ((dtype+1) << 8))); 
-
-/*! \brief The number of decimal point of the binary number. */
-#define REPEAT_FXPNT_BITS (3)
-/*! \brief A wrapper of REPEAT_FXPNT_BITS's multiplier. */
-#define REPEAT_FXPNT_VAL (1<<REPEAT_FXPNT_BITS)
-
-/*!
- * \brief Configure repeat register of the next instantiated input stream.
- * \param times: The times of repeating of each element in the data stream.
- * \param stretch: This is a fixed-point value that adds on the repeat times.
- *                 The repeating times will be round up.
- * \code{.cpp}
- *    times <<= REPEAT_FXPNT_BITS;
- *    times += stretch;
- *    times = (times >> REPEAT_FXPNT_BITS) + ((times & ((1 << REPEAT_FXPNT_BITS) - 1)) != 0);
- * \endcode
- */
-#define SS_CONFIG_PORT_EXPLICIT(repeat_times, stretch) \
-  __asm__ __volatile__("ss_cfg_port %0, t0, %1" : : "r"(repeat_times), "i"((stretch) << 1))
-
-/*!
- * \brief Configure repeat register of the next instantiated input stream.
- * \param stretch: This is an int value that adds on the repeat times.
- */
-#define SS_CONFIG_PORT(repeat_times, stretch) \
-  SS_CONFIG_PORT_EXPLICIT((repeat_times)*REPEAT_FXPNT_VAL, (stretch)*REPEAT_FXPNT_VAL)
-
-/*!
- * \brief Configure repeat register of the next instantiated input stream.
- * \param times: The times of repeating of each element in the data stream.
- */
-#define SS_REPEAT_PORT(times) \
-  SS_CONFIG_PORT_EXPLICIT((times)*REPEAT_FXPNT_VAL, 0)
 
 /*!
  * \brief Configure repeat register of the next instantiated input stream.
@@ -708,9 +704,6 @@ enum MemoryType {
  */
 #define SS_WAIT_DF(num_rem_writes, scratch_type) \
   __asm __volatile__("ss_wait_df %0, %1" : : "r"(num_rem_writes), "i"(scratch_type));
-
-#define SS_WAIT(bit_vec) \
-  __asm__ __volatile__("ss_wait t0, t0, " #bit_vec); \
 
 /*!
  * \brief All the sratch operations will not be issued until all the scratch write before this 

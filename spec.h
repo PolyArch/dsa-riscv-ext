@@ -1,3 +1,5 @@
+#pragma once
+
 /*!
  * \file spec.h
  * @author PolyArch Research Group 

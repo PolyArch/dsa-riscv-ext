@@ -55,3 +55,13 @@ enum Padding {
   PostStridePredOff,
   PreStridePredOff,
 };
+
+enum DSABarrierFlag {
+  DSASyncDMAStreams,
+  DSASyncSPadStreams,
+  DSASyncRecurStreams,
+  DSASyncReadStreams,
+  DSASyncWriteStreams,
+  DSASyncAtomicStreams,
+  DSASyncComputStreams,
+};
