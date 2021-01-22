@@ -65,3 +65,20 @@ enum DSABarrierFlag {
   DSASyncAtomicStreams,
   DSASyncComputStreams,
 };
+
+enum MemoryOperation {
+  Read,
+  Write,
+  AtomAdd,
+  AtomSub,
+  AtomMul,
+  AtomDiv,
+  AtomMax,
+  AtomMin,
+};
+
+enum StreamAction {
+  Access,
+  Generate
+};
+
