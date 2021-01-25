@@ -19,40 +19,26 @@ enum MemoryType {
 #define SENTINAL16 (((uint16_t)1)<<15)
 #define SENTINAL32 (((uint32_t)1)<<31)
 
-#define _SIGNAL(x) ((x) < 0 ? -1 : (x) > 0)
-
-
-/*!
- * \brief The immediate value version of SS_CONTEXT.
- * \param bitmask: The bit mask of configuration.
- *                 We can use environment variable LANES=n to configure the number of lanes.
- *                 By default, it is 8.
- */
-#define SS_CONTEXT_I(bitmask) \
-  __asm__ __volatile__("ss_ctx x0, x0, %0" : : "i"(bitmask))
-
 //Mask for accessing shared scratchpad
 #define SHARED_SP 0x100
 #define SHARED_SP_INDEX 8
 
-/*!
- * \brief Configure the predicate of control code broadcasting as well as the offset of
- *        the SIMT like offset. When instantiating a memory stream, the starting address
- *        will be (address+offset*#lane).
- * \param bitmask: The bit mask of broadcasting.
- * \param offset: The memory offset.
- */
-#define SS_CONTEXT_OFFSET(bitmask,offset) \
-  __asm__ __volatile__("ss_ctx x0, %0, %1" : : "r"(offset), "i"(bitmask))
+/*! \brief The signal of the given number. */
+#define _SIGNAL(x) ((x) < 0 ? -1 : (x) > 0)
 
+
+/*! \brief log of 2. Do give a perfect power of 2. */
+#define _LOG2(x) ((x) ? ((31) - __builtin_clz((uint32_t)(x))) : 0)
+
+
+/*! \brief Configure the state register of the DSA. */
 #define _CONFIG_PARAM_IMPL(idx1, val1, s1, idx2, val2, s2)                               \
   do {                                                                                   \
-    int mask = (idx1) | ((int)(idx2) << 5) | ((s1) << 10) | ((s2 << 11));                \
+    int s2_ = (s2) ? ~((1 << 11) - 1) : 0;                                               \
+    int mask = (idx1) | ((int)(idx2) << 5) | ((s1) << 10) | s2_;                         \
     __asm__ __volatile__("ss_cfg_param %0, %1, %2" : : "r"(val1), "r"(val2), "i"(mask)); \
   } while (false)
 
-/*! brief log of 2. Do give a perfect power of 2. */
-#define _LOG2(x) ((x) ? ((31) - __builtin_clz((uint32_t)(x))) : 0)
 
 /*! \brief Config the data type of the on coming stream. */
 #define CONFIG_DTYPE(direct, const_type, indirect)                   \
@@ -63,6 +49,7 @@ enum MemoryType {
     uint64_t value = (direct_) | (const_ << 2) | ((indirect_) << 4); \
     _CONFIG_PARAM_IMPL(DSARF::CSR, value, 1, 0, 0, 0);               \
   } while (false)
+
 
 /*!
  * \brief Configure the predicate of control code broadcasting.
@@ -75,12 +62,14 @@ enum MemoryType {
 #define SS_CONTEXT(bitmask) \
   _CONFIG_PARAM_IMPL(DSARF::TBC, bitmask, 1, DSARF::ZERO, 0)
 
+
 /*!
  * \brief A wrapper of SS_CONTEXT to configure the predicate of a specific lane.
  * \param core_id: The number of the lane to be enabled
  */
 #define SS_SET_ACCEL(core_id) \
   SS_CONTEXT(1 << (core_id))
+
 
 /*!
  * \brief Configure the spatial architecture.
@@ -91,15 +80,18 @@ enum MemoryType {
 #define SS_CONFIG(addr, size) \
   _CONFIG_PARAM_IMPL(DSARF::CSA, addr, 0, DSARF::CFS, size, 0)
 
+
 /*!
  * \brief Drop all the ongoing data request while retaining the configuration.
  */
 #define SS_RESET() SS_CONFIG(0, 0)
 
+
 /*!
  * \brief Reset all live streams after finishing all ports
  */
 #define SS_STREAM_RESET() SS_CONFIG(0, 1)
+
 
 /*!
  * \brief Set the registers that related to 1-d stream.
@@ -108,6 +100,7 @@ enum MemoryType {
  */
 #define _CONFIG_1D_STREAM(start, length) \
   _CONFIG_PARAM_IMPL(DSARF::SAR, start, 0, DSARF::L1D, length, 0)
+
 
 /*!
  * \brief Instantiate a linear stream
@@ -124,6 +117,7 @@ enum MemoryType {
   ((((port) & 127) << 12) | (((padding) & 1) << 9) | (((action) & 1) << 8) |              \
    (((dimension) & 3) << 6) | (((operation) & 7) << 3) | ((memory) & 1) << 2) | ((signal) & 3)
 
+
 #define INSTANTIATE_1D_STREAM(addr, bytes, port, padding, action, operation, memory, signal, wbytes, cbytes) \
   do {                                                                                                       \
     CONFIG_DTYPE(wbytes, 0, cbytes);                                                                         \
@@ -134,6 +128,7 @@ enum MemoryType {
     __asm__ __volatile__("ss_lin_strm %0" : : "r"(value));                                                   \
   } while (false)
 
+
 /*!
  * \brief addr[0:bytes] -> port
  */
@@ -143,7 +138,6 @@ inline void SS_1D_READ(void *addr,
                        Padding padding,
                        MemoryType source,
                        int wbytes = DSA_ADDRESSABLE_MEM) {
-  auto bytes_ = (bytes) / DSA_ADDRESSABLE_MEM;
   INSTANTIATE_1D_STREAM(addr, bytes, port, padding, /*Stream Action*/StreamAction::Access,
                         /*Memory Operation*/MemoryOperation::Read, /*Data Source*/source,
                         /*Word Signal*/1, /*Word Bytes*/wbytes, /*Const Bytes*/0);
@@ -152,18 +146,16 @@ inline void SS_1D_READ(void *addr,
 /*!
  * \brief port -> addr[0:bytes]
  */
-#define SS_1D_WRITE(port, addr, bytes, source)    \
-  do {                                            \
-    auto bytes_ = (bytes) / DSA_ADDRESSABLE_MEM;  \
-    INSTANTIATE_1D_STREAM(addr, bytes, port,      \
-                          Padding::NoPadding,     \
-                          StreamAction::Access,   \
-                          MemoryOperation::Write, \
-                          source,                 \
-                          1,                      \
-                          DSA_ADDRESSABLE_MEM,    \
-                          0);                     \
-  } while (false)
+inline void SS_1D_WRITE(int port,
+                        void *addr,
+                        int64_t bytes,
+                        MemoryType source,
+                        int wbytes = DSA_ADDRESSABLE_MEM) {
+  INSTANTIATE_1D_STREAM(addr, bytes, port, Padding::NoPadding,
+                        StreamAction::Access, MemoryOperation::Write,
+                        source, 1, wbytes, 0);
+}
+
 
 /*!
  * \brief Feed several consts to a port.
@@ -182,26 +174,19 @@ inline void SS_1D_READ(void *addr,
                         /*Word Byte*/ 1,        \
                         cbyte)
 
+
 /*!
  * \brief Legacy wrapper of SS_DCONST
  */
 #define SS_CONST(port, value, n) SS_DCONST(port, value, n, 8);
 
+
 /*!
  * \brief The semantics is similar to DMA_READ_STRETCH but for scratchpad read.
  */
-#define SS_SCR_PORT_STREAM_STRETCH(scr_addr,stride,acc_size,stretch,n_strides, port) \
-  do {                                                                               \
-    if (acc_size > 0) {                                                              \
-      SS_SCR_RD_OUTER(stride, n_strides, stretch);                                   \
-      SS_SCR_RD_INNER(scr_addr, acc_size, port);                                     \
-    } else {                                                                         \
-      int _addr = scr_addr + acc_size;                                               \
-      int _outer_cnt = n_strides;                                                    \
-      SS_SCR_RD_OUTER(stride, n_strides, stretch);                                   \
-      SS_SCR_RD_INNER(_addr, -acc_size, port);                                       \
-    }                                                                                \
-  } while (false)
+#define SS_SCR_PORT_STREAM_STRETCH(addr, stride, bytes, stretch, n, port) \
+    SS_2D_READ(addr, stride, bytes, stretch, n, port, 0, MemoryType::SPAD)
+
 
 /*!
  * \brief The semantics is similar to DMA_READ but for scratchpad read.
@@ -209,54 +194,37 @@ inline void SS_1D_READ(void *addr,
 #define SS_SCR_PORT_STREAM(scr_addr,stride,acc_size,n_strides, port) \
    SS_SCR_PORT_STREAM_STRETCH(scr_addr,stride,acc_size,0,n_strides, port) 
 
+
 /*!
  * \brief This is a wrapper for SCR_PORT_STREAM to keep backward compatibility.
  */
 #define SS_SCRATCH_READ(scr_addr, n_bytes, port) \
-  SS_SCR_PORT_STREAM_STRETCH(scr_addr,0,n_bytes,0,1, port) 
+  SS_SCR_PORT_STREAM_STRETCH(scr_addr, 0, n_bytes, 0, 1, port) 
 
-
-// ==================== Above are implemented ====================
-
-#define _CONFIG_2D_STREAM(addr, stride, length, stretch, n) \
-  do {                                                      \
-    _CONFIG_1D_STREAM(addr, length);                        \
-  	_CONFIG_PARAM_IMPL(DSARF::E2D, stretch, 0,              \
-                       DSARF::L2D, n, 0);                   \
-  	_CONFIG_PARAM_IMPL(DSARF::I2D, stride, 0,               \
-                       0, 0, 0);                            \
-  } while (false)
-
-#define INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, padding, action, op, mem, sig, wbyte, cbyte) \
-  do {                                                                                                            \
-    CONFIG_DTYPE(wbyte, 0, cbyte);                                                                                \
-    _CONFIG_2D_STREAM(addr, (stride) / (wbyte), bytes / (wbyte), stretch / (wbyte), n);                           \
-    int64_t bytes_ = bytes;                                                                                       \
-    uint64_t value = _LINEAR_STREAM_MASK(port, padding,                                                           \
-                                         action, /*2d*/1, op, mem, sig);                                          \
-    __asm__ __volatile__("ss_lin_strm %0" : : "r"(value));                                                        \
-  } while (false)
 
 /*!
  * \brief Instantiate a 2-d DMA read stream.
  */
-#define SS_DMA_2D_READ(addr, stride, bytes, stretch, n, port, padding)  \
-  INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, padding, \
-                         StreamAction::Access,                          \
-                         MemoryOperation::Read,                         \
-                         MemoryType::DMA, 1, DSA_ADDRESSABLE_MEM, 0)    \
+#define SS_2D_READ(addr, stride, bytes, stretch, n, port, padding, source) \
+  INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, padding,    \
+                        StreamAction::Access,                              \
+                        MemoryOperation::Read,                             \
+                        source, 1, DSA_ADDRESSABLE_MEM, 0)
+
 
 /*!
  * \brief Legacy wrapper of a 2-d stream with stretch.
  */
-#define SS_DMA_READ_STRETCH(addr, stride, acc_size, stretch, n, port ) \
-  SS_DMA_2D_READ(addr, stride, acc_size, stretch, n, port, 0)
+#define SS_DMA_READ_STRETCH(addr, stride, acc_size, stretch, n, port) \
+  SS_2D_READ(addr, stride, acc_size, stretch, n, port, 0, MemoryType::DMA)
+
 
 /*!
  * \brief Legacy wrapper of a 2-d stream without stretch.
  */
 #define SS_DMA_READ(addr, stride, bytes, n, port) \
-  SS_DMA_2D_READ(addr, stride, bytes, 0, n, port, 0)
+  SS_DMA_READ_STRETCH(addr, stride, bytes, 0, n, port)
+
 
 /*!
  * \brief Instantiate a 2-d DMA write stream.
@@ -269,34 +237,17 @@ inline void SS_1D_READ(void *addr,
                         MemoryType::DMA,                       \
                         1, DSA_ADDRESSABLE_MEM, 0)
 
+
 /*!
  * \brief This is a wrapper for DMA_WR_INNER and DMA_WR_OUTER to keep bardward compatibility.
  */
 #define SS_DMA_WRITE(port, stride, bytes, n, addr) \
    SS_DMA_2D_WRITE(addr, stride, bytes, 0, n, port)
 
-/*!
- * \brief Discard a num_elem*elem_size bytes of data from the specific port.
- * \param output_port: The port to discard the value.
- * \param num_elem: The number of elements to discard.
- * \param elem_size: The data size of each element.
- */
-#define SS_GARBAGE_GENERAL(output_port, num_elem, elem_size) \
-  do { \
-    int imm = (output_port) << 1; \
-    __asm__ __volatile__("ss_wr_dma %0, %1, %2" : : "r"(0), "r"((num_elem) * (elem_size)), "i"(imm)); \
-  } while (false)
-
-/*!
- * \brief This is a wrapper for GARBAGE_GENERAL to keep the backward compatibility with
- *        the decomposability.
- * \param num_elem: The number of q-word to discard.
- */
-#define SS_GARBAGE(output_port, num_elem) \
-  SS_GARBAGE_GENERAL(output_port, num_elem, 8)
 
 /*! \brief Insert a barrier for the accelerator. Refer rf.h to see the masks. */
 #define SS_WAIT(mask) __asm__ __volatile__("ss_wait x0, %0" : : "i"(mask))
+
 
 /*! \brief Block the control host and wait everything done on the accelerator. */
 #define SS_WAIT_ALL() SS_WAIT(~0ull)
@@ -323,83 +274,83 @@ inline void SS_1D_READ(void *addr,
 /*! \brief The next stream instantiated from this port will be repeated n times. */
 #define SS_REPEAT_PORT(port, n) SS_CONFIG_PORT(port, PORT_REPEAT, n)
 
-/*!
- * \brief This is similar to DMA_RD_INNER but for scratchpad write.
- */
-#define SS_SCR_WR_INNER(addr, acc_size, port) \
-  __asm__ __volatile__("ss_wr_scr %0, %1, %2" : : "r"(addr), "r"(acc_size), "i"((port) << 2))
+#define _CONFIG_2D_STREAM(addr, stride, length, stretch, n) \
+  do {                                                      \
+    _CONFIG_1D_STREAM(addr, length);                        \
+  	_CONFIG_PARAM_IMPL(DSARF::E2D, stretch, 0,              \
+                       DSARF::L2D, n, 0);                   \
+  	_CONFIG_PARAM_IMPL(DSARF::I2D, stride, 0,               \
+                       0, 0, 0);                            \
+  } while (false)
+
+
+#define INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, padding, action, op, mem, sig, wbyte, cbyte) \
+  do {                                                                                                            \
+    CONFIG_DTYPE(wbyte, 0, cbyte);                                                                                \
+    _CONFIG_2D_STREAM(addr, (stride) / (wbyte), bytes / (wbyte), stretch / (wbyte), n);                           \
+    int64_t bytes_ = bytes;                                                                                       \
+    uint64_t value = _LINEAR_STREAM_MASK(port, padding,                                                           \
+                                         action, /*2d*/1, op, mem, sig);                                          \
+    __asm__ __volatile__("ss_lin_strm %0" : : "r"(value));                                                        \
+  } while (false)
 
 /*!
- * \brief This is similar to DMA_RD_OUTER but for scratchpad write.
+ * \brief Discard a num_elem*elem_size bytes of data from the specific port.
+ * \param output_port: The port to discard the value.
+ * \param num_elem: The number of elements to discard.
+ * \param elem_size: The data size of each element.
  */
-#define SS_SCR_WR_OUTER(stride, n, stretch) \
-  __asm__ __volatile__("ss_wr_scr %0, %1, %2" : : "r"(stride), "r"(n), "i"((stretch) << 2 | 1))
+#define SS_GARBAGE_GENERAL(output_port, num_elem, elem_size) \
+  do {                                                       \
+    auto bytes_ = (bytes) / DSA_ADDRESSABLE_MEM;             \
+    INSTANTIATE_1D_STREAM(0, bytes, port,                    \
+                          Padding::NoPadding,                \
+                          StreamAction::Access,              \
+                          MemoryOperation::Write,            \
+                          source,                            \
+                          1,                                 \
+                          DSA_ADDRESSABLE_MEM,               \
+                          0, MemoryType::DMA);               \
+  } while (false)
+
+/*!
+ * \brief This is a wrapper for GARBAGE_GENERAL to keep the backward compatibility with
+ *        the decomposability.
+ * \param num_elem: The number of q-word to discard.
+ */
+#define SS_GARBAGE(output_port, num_elem) \
+  SS_GARBAGE_GENERAL(output_port, num_elem, 8)
 
 /*!
  * \brief This is a wrapper for SCR_WR_INNER and SCR_WR_OUTER to keep backward compatibility.
- * \param output_port: The data source of the output port.
- * \param num_bytes: The number of bytes from the port to be written to the scratchpad.
- * \param scr_addr: The starting address on the scratchpad.
+ * \param port: The data source of the output port.
+ * \param bytes: The number of bytes from the port to be written to the scratchpad.
+ * \param addr: The starting address on the scratchpad.
  */
-#define SS_SCR_WRITE(output_port, num_bytes, scr_addr) \
-  SS_SCR_WR_INNER(scr_addr, num_bytes, output_port)
+#define SS_SCR_WRITE(port, bytes, addr) SS_1D_WRITE(port, addr, bytes, MemoryType::SPAD) 
 
-/*!
- * \brief Configure the value of the iteration register.
- * \param n: The number to be set.
- *           This will be used to pad recurrence streams, and configure the iterations of 2D_CONST (see below).
- */
-#define SS_SET_ITER(n) \
-  __asm__ __volatile__("ss_set_iter %0 " : : "r"(n))
+inline uint64_t _INDIRECT_STREAM_MASK(int in_port,
+                                      int source,
+                                      int ind_mode,
+                                      int lin_mode) {
+  uint64_t value = (in_port) & 127;
+  value = (value << 3) | ((lin_mode) & 7);
+  value = (value << 3) | ((ind_mode) & 7);
+  value = (value << 3) | (MemoryOperation::Read);
+  value = (value << 1) | ((source) & 1);
+  return value;
+}
 
-/*!
- * \brief This is a legacy wrapper to read data from the memory to the scratchpad.
- *        We used to have dedicated implementation for memory-scratchpad communication,
- *        but now we use a accelerator port (MEM_SCR_PORT) to coordinate the data transfer.
- */
-// TODO(@were): What's the `shr' for?
-#define SS_DMA_SCRATCH_LOAD_GENERAL(mem_addr, stride, acc_size, stretch, n_strides, scr_addr, shr) \
-  SS_DMA_READ_STRETCH(mem_addr, stride, acc_size, stretch, n_strides, MEM_SCR_PORT);               \
-  SS_SCR_WRITE(MEM_SCR_PORT, acc_size * n_strides, scr_addr)
+#define SS_INDIRECT_READ(in_port, idx_port, start, dtype, len, source, ind_mode, lin_mode) \
+  do {                                                                                     \
+    int dtype_ = _LOG2((dtype) / DSA_ADDRESSABLE_MEM);                                     \
+    _CONFIG_PARAM_IMPL(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);                    \
+    _CONFIG_PARAM_IMPL(DSARF::L1D, len, 0, DSARF::CSR, (dtype_) << 4, 0);                  \
+    auto value = _INDIRECT_STREAM_MASK(in_port, source, ind_mode, lin_mode);               \
+    __asm__ __volatile__("ss_ind_strm %0" : : "r"(value));                                 \
+  } while (false)
 
-/*!
- * \brief This is a wrapper for SS_DMA_SCRATCH_LOAD_GENERAL to keep backward compatibility.
- */
-#define SS_DMA_SCRATCH_LOAD_STRETCH(mem_addr, stride, acc_size, stretch, n_strides, scr_addr) \
-  SS_DMA_SCRATCH_LOAD_GENERAL(mem_addr, stride, acc_size, stretch, n_strides, scr_addr, 0)
-
-/*!
- * \brief This is a wrapper for SS_DMA_SCRATCH_LOAD_STRETCH to keep backward compatibility.
- */
-#define SS_DMA_SCRATCH_LOAD(mem_addr, stride, acc_size, n_strides, scr_addr) \
-  SS_DMA_SCRATCH_LOAD_STRETCH(mem_addr,stride, acc_size, 0, n_strides, scr_addr)
-
-/*!
- * \brief This is a legacy wrapper to write data from the scratchpad to the memory.
- *        We used to have dedicated implementation for memory-scratchpad communication,
- *        but now we use a accelerator port (MEM_SCR_PORT) to coordinate the data transfer.
- */
-// TODO(@were): What's the `shr' for?
-#define SS_SCRATCH_DMA_STORE_GENERAL(scr_addr, stride, acc_size, num_strides, mem_addr, shr) \
-  SS_SCR_PORT_STREAM_STRETCH(scr_addr,stride,acc_size,0,num_strides, SCR_MEM_PORT); \
-  SS_DMA_WRITE(SCR_MEM_PORT, acc_size*num_strides, acc_size*num_strides, 1, mem_addr)
-
-/*!
- * \brief This is a wrapper for SCRATCH_DMA_STORE_GENERAL to keep backward compatibility.
- */
-#define SS_SCRATCH_DMA_STORE(scr_addr, stride, access_size, num_strides, mem_addr) \
-  SS_SCRATCH_DMA_STORE_GENERAL(scr_addr, stride, access_size, num_strides, mem_addr, 0)
-
-/*!
- * \brief This is a wrapper for SCRATCH_DMA_STORE_GENERAL to keep backward compatibility.
- */
-// TODO(@were): What's the `shr' for?
-#define SS_SCRATCH_STORE_REMOTE(scr_addr, stride, access_size, num_strides, mem_addr) \
-  SS_SCRATCH_DMA_STORE_GENERAL(scr_addr, stride, access_size, num_strides, mem_addr, 1)
-
-// TODO(@were): Confirm the semantics with @vidushi.
-#define SS_SCRATCH_LOAD_REMOTE(remote_scr_addr, stride, acc_size, stretch, n_strides, scr_addr) \
-  SS_DMA_SCRATCH_LOAD_GENERAL(remote_scr_addr, stride, acc_size, stretch, n_strides, scr_addr, 1)
+// ==================== Above are implemented ====================
 
 // TODO(@were): Fix the buffet functionality.
 #define SS_BUFFET_ALLOCATE(start, buffer_size, total_bytes, port) \
@@ -408,20 +359,6 @@ inline void SS_1D_READ(void *addr,
 // TODO(@were): Fix the buffet functionality.
 #define SS_SCR_RD_INNER_BUFFET(size, inport, inport_dtype, shadowport, shadow_dtype) \
   __asm__ __volatile__("ss_scr_rd %0, %1, %2" : : "r"(shadowport | ((shadow_dtype + 1) << 5) | ((inport_dtype + 1) << 8)), "r"(size), "i"(inport << 2 | 2))
-
-/*!
- * \brief Write several consts to initialize the scratchpad.
- * \param scr_addr: The starting address on the scratchpad.
- * \param val: The value to be fed on the scratchpad.
- * \param num_elements: The number of elements to be written onto the scratchpad.
- * \param data_width: The data type of the value.
- */
-// TODO(@were): Can we make it a wrapper of DCONST and SCRATCH_WRITE?
-#define SS_CONST_SCR(scr_addr, val, num_elements, data_width)                                     \
-  do {                                                                                            \
-    __asm__ __volatile__("ss_set_iter %0 " : : "r"(num_elements));                                \
-    __asm__ __volatile__("ss_const_scr %0, %1, %2" : : "r"(scr_addr), "r"(val), "i"(data_width)); \
-  } while (false)
 
 // TODO(@were): Confirm the semantics with @vidushi.
 #define SS_ATOMIC_DFG_CONFIG(dfg_addr_cons, dfg_val_cons, dfg_val_out) \
@@ -458,13 +395,6 @@ inline void SS_1D_READ(void *addr,
     __asm__ __volatile__("ss_const %0, %1, %2 " : : "r"(val1), "r"(v1_repeat_port), "i"(port|(1<<7)|(1<<8))); \
     __asm__ __volatile__("ss_const %0, %1, %2 " : : "r"(val2), "r"(v2_repeat_port), "i"(port|(1<<6)|(1<<8))); \
   } while (false)
-
-//Send a constant value, repetated num_elements times to a port
-//Plain Write to Scratch
-// #define SS_2D_DCONST(port, val1, v1_repeat, val2, v2_repeat, iters, dtype) \
-//   __asm__ __volatile__("ss_set_iter %0 " : : "r"(iters)); \
-//   __asm__ __volatile__("ss_const %0, %1, %2 " : : "r"(val1), "r"(v1_repeat), "i"(port|(1<<7) | ((dtype+1) << 8))); \
-//   __asm__ __volatile__("ss_const %0, %1, %2 " : : "r"(val2), "r"(v2_repeat), "i"(port|(1<<6) | ((dtype+1) << 8))); 
 
 /*!
  * \brief Configure repeat register of the next instantiated input stream.

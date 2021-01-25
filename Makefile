@@ -11,6 +11,10 @@ opcodes-dsa riscv-dsa.c:%: isa.ext
 riscv-dsa.h: opcodes-dsa
 	cat opcodes-dsa | ./riscv-opcodes/parse_opcodes -c > $@
 
+.PHONY: RISCVInstrInfoSS.td
+RISCVInstrInfoSS.td: isa.ext
+	./llvm.py $^ > ../llvm-project/llvm/lib/Target/RISCV/$@
+
 .PHONY: install-header
 install-header:
 	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(SS_TOOLS)/include/ss_insts.h
