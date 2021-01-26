@@ -82,3 +82,10 @@ enum StreamAction {
   Generate
 };
 
+enum PortField {
+  PortBroadcast,
+  PortRepeat,
+  PortRepeatStretch,
+  PortPeriod,
+};
+

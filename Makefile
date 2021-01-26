@@ -1,4 +1,4 @@
-all: riscv-dsa.h riscv-dsa.c auto-patch.py install-header
+all: riscv-dsa.h riscv-dsa.c auto-patch.py install-header RISCVInstrInfoSS.td
 	cd ../riscv-gnu-toolchain/riscv-binutils && git stash && git stash clear
 	./auto-patch.py riscv-dsa.h ../riscv-gnu-toolchain/riscv-binutils/include/opcode/riscv-opc.h \
                     riscv-dsa.c ../riscv-gnu-toolchain/riscv-binutils/opcodes/riscv-opc.c
@@ -19,6 +19,7 @@ RISCVInstrInfoSS.td: isa.ext
 install-header:
 	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(SS_TOOLS)/include/ss_insts.h
 	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(SS_TOOLS)/include/dsaintrin.h
+	ln -sf `git rev-parse --show-toplevel`/intrin_impl.h $(SS_TOOLS)/include/intrin_impl.h
 	ln -sf `git rev-parse --show-toplevel`/spec.h $(SS_TOOLS)/include/dsa/spec.h
 	ln -sf `git rev-parse --show-toplevel`/rf.h $(SS_TOOLS)/include/dsa/rf.h
 	ln -sf `git rev-parse --show-toplevel`/rf.def $(SS_TOOLS)/include/dsa/rf.def
@@ -28,8 +29,10 @@ clean:
 	rm -f riscv-dsa.h riscv-dsa.c
 	rm -f $(SS_TOOLS)/include/ss_insts.h
 	rm -f $(SS_TOOLS)/include/dsaintrin.h
+	rm -f $(SS_TOOLS)/include/intrin_impl.h
 	rm -f $(SS_TOOLS)/include/dsa/rf.h
 	rm -f $(SS_TOOLS)/include/dsa/rf.def
 	rm -f $(SS_TOOLS)/include/dsa/spec.h
+	rm -f ../llvm-project/llvm/lib/Target/RISCV/RISCVInstrInfoSS.td
 	cd ../riscv-gnu-toolchain/riscv-binutils && git stash && git stash clear
 
