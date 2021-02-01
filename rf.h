@@ -49,43 +49,48 @@ const int REG_STICKY[] = {
 };
 
 enum Padding {
-  NoPadding,
-  PostStrideZero,
-  PreStrideZero,
-  PostStridePredOff,
-  PreStridePredOff,
+  DP_NoPadding,
+  DP_PostStrideZero,
+  DP_PreStrideZero,
+  DP_PostStridePredOff,
+  DP_PreStridePredOff,
 };
 
-enum DSABarrierFlag {
-  DSASyncDMAStreams,
-  DSASyncSPadStreams,
-  DSASyncRecurStreams,
-  DSASyncReadStreams,
-  DSASyncWriteStreams,
-  DSASyncAtomicStreams,
-  DSASyncComputStreams,
+enum BarrierFlag {
+  DBF_DMAStreams,
+  DBF_SPadStreams,
+  DBF_RecurStreams,
+  DBF_ReadStreams,
+  DBF_WriteStreams,
+  DBF_AtomicStreams,
+  DBF_ComputStreams,
 };
 
 enum MemoryOperation {
-  Read,
-  Write,
-  AtomAdd,
-  AtomSub,
-  AtomMul,
-  AtomDiv,
-  AtomMax,
-  AtomMin,
+  DMO_Read,
+  DMO_Write,
+  DMO_AtomAdd,
+  DMO_AtomSub,
+  DMO_AtomMul,
+  DMO_AtomDiv,
+  DMO_AtomMax,
+  DMO_AtomMin,
 };
 
 enum StreamAction {
-  Access,
-  Generate
+  DSA_Access,
+  DSA_Generate
 };
 
 enum PortField {
-  PortBroadcast,
-  PortRepeat,
-  PortRepeatStretch,
-  PortPeriod,
+  DPF_PortBroadcast,
+  DPF_PortRepeat,
+  DPF_PortRepeatStretch,
+  DPF_PortPeriod,
+};
+
+enum MemoryType {
+  DMT_DMA,
+  DMT_SPAD
 };
 

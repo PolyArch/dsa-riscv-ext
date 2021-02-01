@@ -9,11 +9,6 @@
 #include "dsa/spec.h"
 #include "dsa/rf.h"
 
-enum MemoryType {
-  DMA,
-  SPAD
-};
-
 // Magic sentinal for matching
 #define SENTINAL (((uint64_t)1)<<63)
 #define SENTINAL16 (((uint16_t)1)<<15)
@@ -23,32 +18,37 @@ enum MemoryType {
 #define SHARED_SP 0x100
 #define SHARED_SP_INDEX 8
 
-class REG {
+struct REG {
   uint64_t value;
- public:
   inline operator uint64_t&() { return value; }
   REG(uint64_t value_) : value(value_) {}
   REG(void *value_) : value((uint64_t)(value_)) {}
+  uint64_t& toValue() { return this->operator uint64_t&(); }
 };
 
 #define INTRINSIC_RRI(mn, a, b, c) \
   __asm__ __volatile__(mn " %0, %1, %2" : : "r"(a), "r"(b), "i"(c))
 
-#define INTRINSIC_RI(mn, a, b) __asm__ __volatile__(mn " %0, %1, %2" : : "r"(a), "i"(b))
+#define INTRINSIC_RI(mn, a, b) __asm__ __volatile__(mn " %0, %1" : : "r"(a), "i"(b))
 
 #define INTRINSIC_R(mn, a) __asm__ __volatile__(mn " %0" : : "r"(a))
+
+#define INTRINSIC_DI(mn, a, b) __asm__ __volatile__(mn " %0, %1" : : "=r"(a), "i"(b))
+
+#define DIV(a, b) ((a) / (b))
 
 #include "intrin_impl.h"
 
 #undef INTRINSIC_RRI
 #undef INTRINSIC_RI
 #undef INTRINSIC_R
+#undef DIV
 
 /*!
  * \brief The semantics is similar to DMA_READ_STRETCH but for scratchpad read.
  */
 #define SS_SCR_PORT_STREAM_STRETCH(addr, stride, bytes, stretch, n, port) \
-    SS_2D_READ(addr, stride, bytes, stretch, n, port, 0, MemoryType::SPAD)
+    SS_2D_READ(addr, stride, bytes, stretch, n, port, 0, DMT_SPAD)
 
 
 /*!
@@ -70,8 +70,7 @@ class REG {
  */
 #define SS_2D_READ(addr, stride, bytes, stretch, n, port, padding, source) \
   INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, padding,    \
-                        StreamAction::Access,                              \
-                        MemoryOperation::Read,                             \
+                        DSA_Access, DMO_Read,                              \
                         source, 1, DSA_ADDRESSABLE_MEM, 0)
 
 
@@ -79,7 +78,7 @@ class REG {
  * \brief Legacy wrapper of a 2-d stream with stretch.
  */
 #define SS_DMA_READ_STRETCH(addr, stride, acc_size, stretch, n, port) \
-  SS_2D_READ(addr, stride, acc_size, stretch, n, port, 0, MemoryType::DMA)
+  SS_2D_READ(addr, stride, acc_size, stretch, n, port, 0, DMT_DMA)
 
 
 /*!
@@ -94,11 +93,8 @@ class REG {
  */
 #define SS_DMA_2D_WRITE(addr, stride, bytes, stretch, n, port) \
   INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, \
-                        Padding::NoPadding,                    \
-                        StreamAction::Access,                  \
-                        MemoryOperation::Write,                \
-                        MemoryType::DMA,                       \
-                        1, DSA_ADDRESSABLE_MEM, 0)
+                        DP_NoPadding, DSA_Access, DMO_Write,   \
+                        DMT_DMA, 1, DSA_ADDRESSABLE_MEM, 0)
 
 
 /*!
@@ -106,14 +102,6 @@ class REG {
  */
 #define SS_DMA_WRITE(port, stride, bytes, n, addr) \
    SS_DMA_2D_WRITE(addr, stride, bytes, 0, n, port)
-
-
-/*! \brief Insert a barrier for the accelerator. Refer rf.h to see the masks. */
-#define SS_WAIT(mask) __asm__ __volatile__("ss_wait x0, %0" : : "i"(mask))
-
-
-/*! \brief Block the control host and wait everything done on the accelerator. */
-#define SS_WAIT_ALL() SS_WAIT(~0ull)
 
 #define _CONFIG_2D_STREAM(addr, stride, length, stretch, n) \
   do {                                                      \
@@ -138,17 +126,15 @@ class REG {
  * \param num_elem: The number of elements to discard.
  * \param elem_size: The data size of each element.
  */
-#define SS_GARBAGE_GENERAL(output_port, num_elem, elem_size) \
-  do {                                                       \
-    auto bytes_ = (bytes) / DSA_ADDRESSABLE_MEM;             \
-    INSTANTIATE_1D_STREAM(0, bytes, port,                    \
-                          Padding::NoPadding,                \
-                          StreamAction::Access,              \
-                          MemoryOperation::Write,            \
-                          source,                            \
-                          1,                                 \
-                          DSA_ADDRESSABLE_MEM,               \
-                          0, MemoryType::DMA);               \
+#define SS_GARBAGE_GENERAL(output_port, num_elem, elem_size)    \
+  do {                                                          \
+    auto bytes_ = (bytes) / DSA_ADDRESSABLE_MEM;                \
+    INSTANTIATE_1D_STREAM(0, bytes, port,                       \
+                          DPT_NoPadding, DSA_Access, DMO_Write, \
+                          source,                               \
+                          1,                                    \
+                          DSA_ADDRESSABLE_MEM,                  \
+                          0, DMT_DMA);                          \
   } while (false)
 
 /*!
@@ -165,7 +151,7 @@ class REG {
  * \param bytes: The number of bytes from the port to be written to the scratchpad.
  * \param addr: The starting address on the scratchpad.
  */
-#define SS_SCR_WRITE(port, bytes, addr) SS_1D_WRITE(port, addr, bytes, MemoryType::SPAD) 
+#define SS_SCR_WRITE(port, bytes, addr) SS_1D_WRITE(port, addr, bytes, DMT_SPAD) 
 
 inline uint64_t _INDIRECT_STREAM_MASK(int in_port,
                                       int source,
@@ -174,7 +160,7 @@ inline uint64_t _INDIRECT_STREAM_MASK(int in_port,
   uint64_t value = (in_port) & 127;
   value = (value << 3) | ((lin_mode) & 7);
   value = (value << 3) | ((ind_mode) & 7);
-  value = (value << 3) | (MemoryOperation::Read);
+  value = (value << 3) | (DMO_Read);
   value = (value << 1) | ((source) & 1);
   return value;
 }
