@@ -106,8 +106,8 @@ struct REG {
 #define _CONFIG_2D_STREAM(addr, stride, length, stretch, n) \
   do {                                                      \
     CONFIG_1D_STREAM(addr, length);                         \
-  	CONFIG_PARAM(DSARF::E2D, stretch, 0, DSARF::L2D, n, 0); \
-  	CONFIG_PARAM(DSARF::I2D, stride, 0, 0, (uint64_t)0, 0); \
+    CONFIG_PARAM(DSARF::E2D, stretch, 0, DSARF::L2D, n, 0); \
+    CONFIG_PARAM(DSARF::I2D, stride, 0, 0, (uint64_t)0, 0); \
   } while (false)
 
 
