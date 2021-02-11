@@ -13,16 +13,16 @@ riscv-dsa.h: opcodes-dsa
 
 .PHONY: RISCVInstrInfoSS.td
 RISCVInstrInfoSS.td: isa.ext
-	./llvm.py $^ > ../llvm-project/llvm/lib/Target/RISCV/$@
+#	./llvm.py $^ > ../llvm-project/llvm/lib/Target/RISCV/$@
 
 .PHONY: install-header
 install-header:
-	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(SS_TOOLS)/include/ss_insts.h
-	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(SS_TOOLS)/include/dsaintrin.h
-	ln -sf `git rev-parse --show-toplevel`/intrin_impl.h $(SS_TOOLS)/include/intrin_impl.h
-	ln -sf `git rev-parse --show-toplevel`/spec.h $(SS_TOOLS)/include/dsa/spec.h
-	ln -sf `git rev-parse --show-toplevel`/rf.h $(SS_TOOLS)/include/dsa/rf.h
-	ln -sf `git rev-parse --show-toplevel`/rf.def $(SS_TOOLS)/include/dsa/rf.def
+	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(RISCV)/include/ss_insts.h
+	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(RISCV)/include/dsaintrin.h
+	ln -sf `git rev-parse --show-toplevel`/intrin_impl.h $(RISCV)/include/intrin_impl.h
+	ln -sf `git rev-parse --show-toplevel`/spec.h $(RISCV)/include/dsa/spec.h
+	ln -sf `git rev-parse --show-toplevel`/rf.h $(RISCV)/include/dsa/rf.h
+	ln -sf `git rev-parse --show-toplevel`/rf.def $(RISCV)/include/dsa/rf.def
 
 clean:
 	rm -f opcodes-dsa
