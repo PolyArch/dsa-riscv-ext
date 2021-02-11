@@ -187,3 +187,19 @@ inline void SS_WAIT(uint64_t mask) {
 inline void SS_WAIT_ALL() {
   SS_WAIT(~0ull);
 }
+
+
+/*!
+ * \brief Write a value from CGRA to the register file.
+ * \param out_port: The source port.
+ * \param val: A lvalue reference where the value is written to.
+ */
+inline int64_t SS_RECV(int port, int dtype = 8) {
+  int mask = port;
+  mask <<= 2;
+  mask <<= 2;
+  mask |= _LOG2((int) dtype);
+  INTRINSIC_DRI("ss_recv", res, 0, mask);
+  return res;
+}
+

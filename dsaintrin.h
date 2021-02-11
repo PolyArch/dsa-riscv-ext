@@ -21,9 +21,9 @@
 struct REG {
   uint64_t value;
   inline operator uint64_t&() { return value; }
+  REG() {}
   REG(uint64_t value_) : value(value_) {}
   REG(void *value_) : value((uint64_t)(value_)) {}
-  uint64_t& toValue() { return this->operator uint64_t&(); }
 };
 
 #define INTRINSIC_RRI(mn, a, b, c) \
@@ -33,7 +33,14 @@ struct REG {
 
 #define INTRINSIC_R(mn, a) __asm__ __volatile__(mn " %0" : : "r"(a))
 
-#define INTRINSIC_DI(mn, a, b) __asm__ __volatile__(mn " %0, %1" : : "=r"(a), "i"(b))
+#define INTRINSIC_DI(mn, a, b) \
+   REG a;                      \
+   __asm__ __volatile__(mn " %0, %1" : : "=r"(a.operator uint64_t&()), "i"(b));
+
+#define INTRINSIC_DRI(mn, a, b, c) \
+   REG a;                          \
+   __asm__ __volatile__(mn " %0, %1, %2" : : "r"(a), "r"(b), "i"(c));
+   //__asm__ __volatile__(mn " %0, %1, %2" : : "=r"(a.operator uint64_t&()), "r"(b), "i"(c));
 
 #define DIV(a, b) ((a) / (b))
 
@@ -187,14 +194,6 @@ inline uint64_t _INDIRECT_STREAM_MASK(int in_port,
 // TODO(@were): Confirm the semantics with @vidushi.
 #define SS_ATOMIC_DFG_CONFIG(dfg_addr_cons, dfg_val_cons, dfg_val_out) \
   __asm__ __volatile__("ss_atom_op %0, %1, %2" : : "r"(dfg_addr_cons), "r"(dfg_val_cons), "i"(dfg_val_out << 1 | 0))
-
-/*!
- * \brief Write a value from CGRA to the register file.
- * \param out_port: The source port.
- * \param val: A lvalue reference where the value is written to.
- */
-#define SS_RECV(out_port, val) \
-  __asm__ __volatile__("ss_recv %0, a0, %1 " : "=r"(val) : "i"(out_port))
 
 /*!
  * \brief Periodically feed two consts to a port. [(val1 x v1_repeat), (val2 x v2_repeat)] x iters
