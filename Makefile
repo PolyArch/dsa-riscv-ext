@@ -1,7 +1,7 @@
 all: riscv-dsa.h riscv-dsa.c auto-patch.py install-header RISCVInstrInfoSS.td
 	cd ../riscv-gnu-toolchain/riscv-binutils && git stash && git stash clear
 	./auto-patch.py riscv-dsa.h ../riscv-gnu-toolchain/riscv-binutils/include/opcode/riscv-opc.h \
-                    riscv-dsa.c ../riscv-gnu-toolchain/riscv-binutils/opcodes/riscv-opc.c
+                        riscv-dsa.c ../riscv-gnu-toolchain/riscv-binutils/opcodes/riscv-opc.c
 
 .PHONY: opcodes-dsa
 opcodes-dsa riscv-dsa.c:%: isa.ext
@@ -13,7 +13,7 @@ riscv-dsa.h: opcodes-dsa
 
 .PHONY: RISCVInstrInfoSS.td
 RISCVInstrInfoSS.td: isa.ext
-#	./llvm.py $^ > ../llvm-project/llvm/lib/Target/RISCV/$@
+	./llvm.py $^ > ../llvm-project/llvm/lib/Target/RISCV/$@
 
 .PHONY: install-header
 install-header:
