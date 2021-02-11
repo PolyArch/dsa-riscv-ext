@@ -3,6 +3,7 @@
 """The pre-processor of the extended instruction."""
 
 import sys
+import os
 
 max_width = 16
 
@@ -48,14 +49,18 @@ def asmtext(name, ty, args, op0, op1, funct3):
         operands.append(imm_ty[ty])
     res = []
     res.append(padspace('"%s"' % name, 16))
+    res.append(["INSN_CLASS_I", '{"I", 0}'][compat_mode])
     res.append(padspace('"%s"' % ','.join(operands), 8))
     res.append(padspace('MATCH_' + name.upper(), 24))
     res.append(padspace('MASK_' + name.upper(), 24))
-    return '{%s, 0, INSN_CLASS_I, %s, %s, %s, match_opcode, 0},' % tuple(res)
+    return '{%s, 0, %s, %s, %s, %s, match_opcode, 0},' % tuple(res)
 
-with open(sys.argv[1], 'r') as ext,   \
-     open(sys.argv[2], 'w') as afile, \
-     open(sys.argv[3], 'w') as bfile:
+args = sys.argv
+compat_mode = os.getenv('COMPAT') is not None
+
+with open(args[1], 'r') as ext,   \
+     open(args[2], 'w') as afile, \
+     open(args[3], 'w') as bfile:
     for raw in ext.readlines():
         raw = raw.strip()
         if '#' in raw:
