@@ -1,1 +1,4 @@
 riscv-dsa.h
+riscv-dsa.c
+opcodes-dsa
+
