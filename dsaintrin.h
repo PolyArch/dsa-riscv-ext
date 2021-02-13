@@ -35,12 +35,11 @@ struct REG {
 
 #define INTRINSIC_DI(mn, a, b) \
    REG a;                      \
-   __asm__ __volatile__(mn " %0, %1" : : "=r"(a.operator uint64_t&()), "i"(b));
+   __asm__ __volatile__(mn " %0, %1" : "=r"(a) : "i"(b));
 
 #define INTRINSIC_DRI(mn, a, b, c) \
    REG a;                          \
-   __asm__ __volatile__(mn " %0, %1, %2" : : "r"(a), "r"(b), "i"(c));
-   //__asm__ __volatile__(mn " %0, %1, %2" : : "=r"(a.operator uint64_t&()), "r"(b), "i"(c));
+   __asm__ __volatile__(mn " %0, %1, %2" : "=r"(a) : "r"(b), "i"(c));
 
 #define DIV(a, b) ((a) / (b))
 
@@ -226,16 +225,6 @@ inline uint64_t _INDIRECT_STREAM_MASK(int in_port,
  */
 #define SS_VREPEAT_PORT(times_port) \
   __asm__ __volatile__("ss_cfg_port %0, t0, %1" : : "r"(times_port), "i"(1))
-
-/*!
- * \brief Forward value from output port to the input port.
- * \param output_port: The data source port.
- * \param input_port: The destination data port.
- * \param num_strides: The number of data forwarded.
- */
-// TODO(@were):  I need clearer specification on the data type.
-#define SS_RECURRENCE(output_port, input_port, num_strides) \
-  __asm__ __volatile__("ss_wr_rd %0, zero, %1" : : "r"(num_strides), "i"((input_port<<6) | (output_port)))
 
 /*!
  * \brief Forward value from output port to the input port with data padding.
