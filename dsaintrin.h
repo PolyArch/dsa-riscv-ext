@@ -23,6 +23,9 @@ struct REG {
   inline operator uint64_t&() { return value; }
   REG() {}
   REG(uint64_t value_) : value(value_) {}
+  REG(uint32_t value_) : value(value_) {}
+  REG(int64_t value_) : value(value_) {}
+  REG(int32_t value_) : value(value_) {}
   REG(void *value_) : value((uint64_t)(value_)) {}
 };
 
