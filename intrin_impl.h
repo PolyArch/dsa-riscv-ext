@@ -108,8 +108,8 @@ inline uint64_t LINEAR_STREAM_MASK(int port, int padding, int action, int dimens
 }
 
 /*!
- * \brief Instantiate a linear stream
- * \param port The source/destination port
+ * \brief Instantiate a 1d linear stream.
+ * \param port The source/destination port.
  * \param padding The mode of padding. Refer rf.h:Padding for more details.
  *                If it is a write stream, this is useless. Use 0 as a placeholder.
  * \param action 0: access; 1: generate the affine linear value sequence to the port.
@@ -194,13 +194,15 @@ inline void SS_WAIT_ALL() {
  * \param out_port: The source port.
  * \param val: A lvalue reference where the value is written to.
  */
-inline int64_t SS_RECV(int port, int dtype = 8) {
+inline REG SS_RECV(int port, int dtype = 8) {
   int mask = port;
   mask <<= 1;
   mask <<= 2;
   mask |= _LOG2((int) dtype);
   mask <<= 1;
-  INTRINSIC_DRI("ss_recv", res, 0, mask);
+  REG res;
+  REG x0((uint64_t) 0);
+  INTRINSIC_DRI("ss_recv", res, x0, mask);
   return res;
 }
 
@@ -214,4 +216,33 @@ inline int64_t SS_RECV(int port, int dtype = 8) {
 inline void SS_RECURRENCE(int oport, int iport, REG n, int dtype = 8) {
   CONFIG_PARAM(DSARF::L1D, n, false, DSARF::CSR, _LOG2((dtype) / DSA_ADDRESSABLE_MEM), false);
   INTRINSIC_R("ss_wr_rd", iport | (oport << 7));
+}
+
+
+/*!
+ * \brief Set the registers that related to 2d stream.
+ * \param start Register SAR
+ * \param stride Register I2D
+ * \param length Register L1D
+ * \param stretch Register E2D
+ * \param n Register L2D
+ */
+inline void CONFIG_2D_STREAM(REG addr, REG stride, REG length, REG stretch, REG n) {
+  CONFIG_1D_STREAM(addr, length);
+  CONFIG_PARAM(DSARF::E2D, stretch, 0, DSARF::L2D, n, 0);
+  CONFIG_PARAM(DSARF::I2D, stride, 0, 0, (uint64_t)0, 0);
+}
+
+
+/*!
+ * \brief Instantiate a 2d linear stream.
+ */
+inline void INSTANTIATE_2D_STREAM(REG addr, REG stride, REG bytes, REG stretch, REG n,
+                                  int port, int padding, int action, int op, int mem,
+                                  int sig, int wbyte, int cbyte) {                                                                                                            \
+  CONFIG_DTYPE(wbyte, 0, cbyte);
+  CONFIG_2D_STREAM(addr, DIV(stride, wbyte), DIV(bytes, wbyte),
+                   DIV(stretch, wbyte), n);
+  auto value = LINEAR_STREAM_MASK(port, padding, action, /*2d*/1, op, mem, sig);
+  INTRINSIC_R("ss_lin_strm", value);
 }

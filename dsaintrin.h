@@ -37,7 +37,6 @@ struct REG {
 #define INTRINSIC_R(mn, a) __asm__ __volatile__(mn " %0" : : "r"(a))
 
 #define INTRINSIC_DI(mn, a, b) \
-   REG a;                      \
    __asm__ __volatile__(mn " %0, %1" : "=r"(a) : "i"(b));
 
 #define INTRINSIC_DRI(mn, a, b, c) \
@@ -111,23 +110,6 @@ struct REG {
  */
 #define SS_DMA_WRITE(port, stride, bytes, n, addr) \
    SS_DMA_2D_WRITE(addr, stride, bytes, 0, n, port)
-
-#define _CONFIG_2D_STREAM(addr, stride, length, stretch, n) \
-  do {                                                      \
-    CONFIG_1D_STREAM(addr, length);                         \
-    CONFIG_PARAM(DSARF::E2D, stretch, 0, DSARF::L2D, n, 0); \
-    CONFIG_PARAM(DSARF::I2D, stride, 0, 0, (uint64_t)0, 0); \
-  } while (false)
-
-
-#define INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, padding, action, op, mem, sig, wbyte, cbyte) \
-  do {                                                                                                            \
-    CONFIG_DTYPE(wbyte, 0, cbyte);                                                                                \
-    _CONFIG_2D_STREAM(addr, (stride) / (wbyte), bytes / (wbyte), stretch / (wbyte), n);                           \
-    int64_t bytes_ = bytes;                                                                                       \
-    uint64_t value = LINEAR_STREAM_MASK(port, padding, action, /*2d*/1, op, mem, sig);                            \
-    __asm__ __volatile__("ss_lin_strm %0" : : "r"(value));                                                        \
-  } while (false)
 
 /*!
  * \brief Discard a num_elem*elem_size bytes of data from the specific port.
