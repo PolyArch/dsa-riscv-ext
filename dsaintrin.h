@@ -93,7 +93,7 @@ struct REG {
  * \brief Legacy wrapper of a 2-d stream without stretch.
  */
 #define SS_DMA_READ(addr, stride, bytes, n, port) \
-  SS_DMA_READ_STRETCH(addr, stride, bytes, 0, n, port)
+  SS_DMA_READ_STRETCH(addr, stride, bytes, (uint64_t) 0, n, port)
 
 
 /*!
@@ -109,7 +109,7 @@ struct REG {
  * \brief This is a wrapper for DMA_WR_INNER and DMA_WR_OUTER to keep bardward compatibility.
  */
 #define SS_DMA_WRITE(port, stride, bytes, n, addr) \
-   SS_DMA_2D_WRITE(addr, stride, bytes, 0, n, port)
+   SS_DMA_2D_WRITE(addr, stride, bytes, (uint64_t) 0, n, port)
 
 /*!
  * \brief Discard a num_elem*elem_size bytes of data from the specific port.
