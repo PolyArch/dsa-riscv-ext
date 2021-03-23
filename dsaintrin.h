@@ -40,7 +40,6 @@ struct REG {
    __asm__ __volatile__(mn " %0, %1" : "=r"(a) : "i"(b));
 
 #define INTRINSIC_DRI(mn, a, b, c) \
-   REG a;                          \
    __asm__ __volatile__(mn " %0, %1, %2" : "=r"(a) : "r"(b), "i"(c));
 
 #define DIV(a, b) ((a) / (b))
