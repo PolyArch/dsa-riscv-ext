@@ -196,10 +196,22 @@ inline void SS_WAIT_ALL() {
  */
 inline int64_t SS_RECV(int port, int dtype = 8) {
   int mask = port;
-  mask <<= 2;
+  mask <<= 1;
   mask <<= 2;
   mask |= _LOG2((int) dtype);
+  mask <<= 1;
   INTRINSIC_DRI("ss_recv", res, 0, mask);
   return res;
 }
 
+/*!
+ * \brief Forward value from output port to the input port.
+ * \param output_port: The data source port.
+ * \param input_port: The destination data port.
+ * \param n: The number of data forwarded.
+ * \param dtype: The data type of each element forwarded.
+ */
+inline void SS_RECURRENCE(int oport, int iport, REG n, int dtype = 8) {
+  CONFIG_PARAM(DSARF::L1D, n, false, DSARF::CSR, _LOG2((dtype) / DSA_ADDRESSABLE_MEM), false);
+  INTRINSIC_R("ss_wr_rd", iport | (oport << 7));
+}

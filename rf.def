@@ -1,4 +1,4 @@
-MACRO(ZERO)      // zero register 
+MACRO(ZERO)      // ZERO register 
 MACRO(TBC)       // accelerators To Be Configured
 MACRO(CSA)       // Configuration Starting Address
 MACRO(CFS)       // ConFiguration Size in bytes
