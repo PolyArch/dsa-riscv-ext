@@ -11,14 +11,14 @@ inline void CONFIG_PARAM(int idx1, REG val1, bool s1,
                          int idx2, REG val2, bool s2) {
   int s2_ = (s2) ? ~((1 << 11) - 1) : 0;
   int mask = (idx1) | ((int)(idx2) << 5) | ((s1) << 10) | s2_;
-  INTRINSIC_RRI("ss_cfg_param", val1, val2, mask);
+  INTRINSIC_RRI("ss_cfg_param", val1, val2, (uint64_t) mask);
 }
 
 
 /*! \brief Configure the state register of the DSA. */
 inline void CONFIG_PARAM(int idx1, REG val1, bool s1) {
   int mask = (idx1) | ((s1) << 10);
-  INTRINSIC_RRI("ss_cfg_param", val1, 0, mask);
+  INTRINSIC_RRI("ss_cfg_param", val1, (uint64_t) 0, (uint64_t) mask);
 }
 
 
@@ -129,7 +129,7 @@ inline uint64_t LINEAR_STREAM_MASK(int port, int padding, int action, int dimens
 inline void INSTANTIATE_1D_STREAM(REG addr, REG length,
                                   int port, int padding, int action, int operation,
                                   int memory, int signal, int wbytes, int cbytes) {
-  CONFIG_DTYPE(wbytes, 0, cbytes);
+  CONFIG_DTYPE(wbytes, cbytes, 0);
   CONFIG_1D_STREAM(addr, length);
   auto value = LINEAR_STREAM_MASK(port, padding, action, /*1d*/0, operation, memory, signal);
   INTRINSIC_R("ss_lin_strm", value);
@@ -218,7 +218,7 @@ inline void CONFIG_2D_STREAM(REG addr, REG length, REG stride, REG stretch, REG 
 inline void INSTANTIATE_2D_STREAM(REG addr, REG l1d, REG stride, REG stretch, REG n,
                                   int port, int padding, int action, int op, int mem,
                                   int sig, int wbyte, int cbyte) {                                                                                                            \
-  CONFIG_DTYPE(wbyte, 0, cbyte);
+  CONFIG_DTYPE(wbyte, cbyte, 0);
   CONFIG_2D_STREAM(addr, l1d, stride, stretch, n);
   auto value = LINEAR_STREAM_MASK(port, padding, action, /*2d*/1, op, mem, sig);
   INTRINSIC_R("ss_lin_strm", value);
@@ -247,7 +247,7 @@ inline void INSTANTIATE_3D_STREAM(REG addr, REG l1d, REG stride_2d, REG stretch_
                                   REG stride_3d, REG n_3d,
                                   int port, int padding, int action, int op, int mem,
                                   int sig, int wbyte, int cbyte) {                                                                                                            \
-  CONFIG_DTYPE(wbyte, 0, cbyte);
+  CONFIG_DTYPE(wbyte, cbyte, 0);
   CONFIG_3D_STREAM(addr, l1d, stride_2d, stretch_2d1d, n_2d,
                    delta_stretch_3d2d, delta_stride_3d2d,
                    delta_length_3d1d, delta_length_3d2d,
@@ -270,14 +270,6 @@ inline void INSTANTIATE_3D_STREAM(REG addr, REG l1d, REG stride_2d, REG stretch_
 inline void SS_2D_CONST(int port, REG v1, REG r1, REG v2, REG r2, REG iters, int cbyte = 8) {
   REG stride_2d = SUB(v2, v1);
   REG stretch_2d1d = SUB(r2, r1);
-  // INSTANTIATE_3D_STREAM(v1, r1, stride_2d, /*stretch 2d1d*/stretch_2d1d,
-  //                       /*n2d*/(uint64_t) 2,
-  //                       /*delta stretch 3d2d*/(uint64_t) 0,
-  //                       /*delta stride 3d2d*/(uint64_t) 0,
-  //                       /*delta length 3d1d*/-stretch_2d1d,
-  //                       /*delta length 3d2d*/(uint64_t) 0,
-  //                       /*stride 3d*/-stride_2d,
-  //                       /*n3d*/iters, port, 0, DSA_Generate, 0, 0, 0, 1, cbyte);
   INSTANTIATE_3D_STREAM(v1, r1, stride_2d, /*stretch 2d1d*/stretch_2d1d,
                         /*n2d*/(uint64_t) 2,
                         /*delta stretch 3d2d*/(uint64_t) 0,
