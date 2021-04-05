@@ -229,7 +229,6 @@ inline void CONFIG_3D_STREAM(REG addr, REG l1d, REG stride_2d, REG stretch_2d1d,
                              REG delta_stretch_3d2d, REG delta_stride_3d2d,
                              REG delta_length_3d1d, REG delta_length_3d2d,
                              REG stride_3d, REG n_3d) {
-  std::cout << n_3d << std::endl;
   CONFIG_2D_STREAM(addr, l1d, stride_2d, stretch_2d1d, n_2d);
   CONFIG_PARAM(DSARF::DE2D, delta_stretch_3d2d, 0,
                DSARF::DI2D, delta_stride_3d2d, 0);
@@ -278,4 +277,25 @@ inline void SS_2D_CONST(int port, REG v1, REG r1, REG v2, REG r2, REG iters, int
                         /*delta length 3d2d*/(uint64_t) 0,
                         /*stride 3d*/(uint64_t) 0,
                         /*n3d*/iters, port, 0, DSA_Generate, 0, 0, 0, 1, cbyte);
+}
+
+inline uint64_t INDIRECT_STREAM_MASK(int in_port,
+                                     int memory,
+                                     int ind_mode,
+                                     int lin_mode) {
+  uint64_t value = (in_port) & 127;
+  value = (value << 3) | ((lin_mode) & 7);
+  value = (value << 3) | ((ind_mode) & 7);
+  value = (value << 3) | (DMO_Read);
+  value = (value << 1) | ((memory) & 1);
+  return value;
+}
+
+void SS_INDIRECT_READ(int in_port, int idx_port, REG start, int dtype, REG len,
+                      int memory, int ind_mode, int lin_mode) {
+  int dtype_ = _LOG2((dtype) / DSA_ADDRESSABLE_MEM);
+  CONFIG_PARAM(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);
+  CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, (dtype_) << 4, 0);
+  auto value = INDIRECT_STREAM_MASK(in_port, memory, ind_mode, lin_mode);
+  INTRINSIC_R("ss_ind_strm", value);
 }

@@ -176,27 +176,6 @@ inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n,
  */
 #define SS_SCR_WRITE(port, bytes, addr) SS_1D_WRITE(port, addr, bytes, DMT_SPAD) 
 
-inline uint64_t _INDIRECT_STREAM_MASK(int in_port,
-                                      int source,
-                                      int ind_mode,
-                                      int lin_mode) {
-  uint64_t value = (in_port) & 127;
-  value = (value << 3) | ((lin_mode) & 7);
-  value = (value << 3) | ((ind_mode) & 7);
-  value = (value << 3) | (DMO_Read);
-  value = (value << 1) | ((source) & 1);
-  return value;
-}
-
-#define SS_INDIRECT_READ(in_port, idx_port, start, dtype, len, source, ind_mode, lin_mode) \
-  do {                                                                                     \
-    int dtype_ = _LOG2((dtype) / DSA_ADDRESSABLE_MEM);                                     \
-    CONFIG_PARAM(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);                          \
-    CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, (dtype_) << 4, 0);                        \
-    auto value = _INDIRECT_STREAM_MASK(in_port, source, ind_mode, lin_mode);               \
-    __asm__ __volatile__("ss_ind_strm %0" : : "r"(value));                                 \
-  } while (false)
-
 // ==================== Above are implemented ====================
 
 // TODO(@were): Fix the buffet functionality.
