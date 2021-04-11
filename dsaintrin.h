@@ -72,7 +72,7 @@ inline void SS_1D_WRITE(int port,
                         REG bytes,
                         MemoryType source,
                         int wbytes = DSA_ADDRESSABLE_MEM) {
-  INSTANTIATE_1D_STREAM(addr, bytes, port, DP_NoPadding,
+  INSTANTIATE_1D_STREAM(addr, DIV(bytes, wbytes), port, DP_NoPadding,
                         DSA_Access, DMO_Write,
                         source, 1, wbytes, 0);
 }
@@ -120,12 +120,12 @@ inline void SS_2D_READ(REG addr, REG stride, REG bytes, REG stretch, REG n, int 
 /*!
  * \brief Instantiate a 2-d DMA write stream.
  */
-inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n, int port) {
+inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n, int port, int dtype = DSA_ADDRESSABLE_MEM) {
   INSTANTIATE_2D_STREAM(addr, DIV(bytes, DSA_ADDRESSABLE_MEM),
                         DIV(stride, DSA_ADDRESSABLE_MEM),
                         DIV(stretch, DSA_ADDRESSABLE_MEM), n, port,
                         DP_NoPadding, DSA_Access, DMO_Write,
-                        DMT_DMA, 1, DSA_ADDRESSABLE_MEM, 0);
+                        DMT_DMA, 1, dtype, 0);
 }
 
 
@@ -177,14 +177,6 @@ inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n,
 #define SS_SCR_WRITE(port, bytes, addr) SS_1D_WRITE(port, addr, bytes, DMT_SPAD) 
 
 // ==================== Above are implemented ====================
-
-// TODO(@were): Fix the buffet functionality.
-#define SS_BUFFET_ALLOCATE(start, buffer_size, total_bytes, port) \
-  __asm__ __volatile__("ss_wr_scr %0, %1, %2" : : "r"(((uint64_t)start << 32ull) | buffer_size), "r"(total_bytes), "i"((port) << 2 | 2))
-
-// TODO(@were): Fix the buffet functionality.
-#define SS_SCR_RD_INNER_BUFFET(size, inport, inport_dtype, shadowport, shadow_dtype) \
-  __asm__ __volatile__("ss_scr_rd %0, %1, %2" : : "r"(shadowport | ((shadow_dtype + 1) << 5) | ((inport_dtype + 1) << 8)), "r"(size), "i"(inport << 2 | 2))
 
 // TODO(@were): Confirm the semantics with @vidushi.
 #define SS_ATOMIC_DFG_CONFIG(dfg_addr_cons, dfg_val_cons, dfg_val_out) \

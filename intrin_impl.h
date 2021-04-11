@@ -291,11 +291,18 @@ inline uint64_t INDIRECT_STREAM_MASK(int in_port,
   return value;
 }
 
-void SS_INDIRECT_READ(int in_port, int idx_port, REG start, int dtype, REG len,
+inline void SS_INDIRECT_READ(int in_port, int idx_port, REG start, int dtype, REG len,
                       int memory, int ind_mode, int lin_mode) {
   int dtype_ = _LOG2((dtype) / DSA_ADDRESSABLE_MEM);
   CONFIG_PARAM(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);
   CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, (dtype_) << 4, 0);
   auto value = INDIRECT_STREAM_MASK(in_port, memory, ind_mode, lin_mode);
   INTRINSIC_R("ss_ind_strm", value);
+}
+
+inline void SS_BUFFET_ALLOC(int start, int end) {
+  int64_t mask = end;
+  mask <<= 16;
+  mask |= start;
+  CONFIG_PARAM(DSARF::BR, mask, 0);
 }

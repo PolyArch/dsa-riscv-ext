@@ -20,9 +20,9 @@ MACRO(IL1D)      // Indirect Length of 1D stream
 MACRO(IL2D)      // Indirect Length of 2D stream
 MACRO(ILV)       // Indirect Length of Value stream
 MACRO(BR)        // allocated Buffet address Range encoded in 32 bits
-MACRO(BSR)       // Buffet State Register) encodes buffet configuration info in 32 bits
+MACRO(BSR)       // Buffet State Register encodes buffet configuration info in 32 bits
 MACRO(OFL)       // OFfset List (up to 4) accessed by an indirect stream
-MACRO(VSR)       // Vector State Register) encodes vector state
+MACRO(VSR)       // Vector State Register encodes vector state
 MACRO(RPT)       // RePeaT times of each port element
 MACRO(ERPT)      // strEtch of RePeaT times
 MACRO(EPRD)      // apply the strEtch according to the PeRioD
