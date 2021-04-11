@@ -23,9 +23,6 @@ struct REG {
   inline operator uint64_t&() { return value; }
   REG() {}
   REG(uint64_t value_) : value(value_) {}
-  REG(uint32_t value_) : value(value_) {}
-  REG(int64_t value_) : value(value_) {}
-  REG(int32_t value_) : value(value_) {}
   REG(void *value_) : value((uint64_t)(value_)) {}
 };
 
@@ -37,21 +34,48 @@ struct REG {
 #define INTRINSIC_R(mn, a) __asm__ __volatile__(mn " %0" : : "r"(a))
 
 #define INTRINSIC_DI(mn, a, b) \
-   REG a;                      \
    __asm__ __volatile__(mn " %0, %1" : "=r"(a) : "i"(b));
 
 #define INTRINSIC_DRI(mn, a, b, c) \
-   REG a;                          \
    __asm__ __volatile__(mn " %0, %1, %2" : "=r"(a) : "r"(b), "i"(c));
 
 #define DIV(a, b) ((a) / (b))
+#define SUB(a, b) ((a) - (b))
 
 #include "intrin_impl.h"
 
 #undef INTRINSIC_RRI
 #undef INTRINSIC_RI
 #undef INTRINSIC_R
-#undef DIV
+
+/*!
+ * \brief addr[0:bytes] -> port
+ */
+inline void SS_1D_READ(REG addr,
+                       REG bytes,
+                       int port,
+                       Padding padding,
+                       MemoryType source,
+                       int wbytes = DSA_ADDRESSABLE_MEM) {
+  INSTANTIATE_1D_STREAM(addr, DIV(bytes, wbytes), port, padding,
+                        /*Stream Action*/DSA_Access,
+                        /*Memory Operation*/DMO_Read, /*Data Source*/source,
+                        /*Word Signal*/1, /*Word Bytes*/wbytes, /*Const Bytes*/0);
+}
+
+
+/*!
+ * \brief port -> addr[0:bytes]
+ */
+inline void SS_1D_WRITE(int port,
+                        REG addr,
+                        REG bytes,
+                        MemoryType source,
+                        int wbytes = DSA_ADDRESSABLE_MEM) {
+  INSTANTIATE_1D_STREAM(addr, DIV(bytes, wbytes), port, DP_NoPadding,
+                        DSA_Access, DMO_Write,
+                        source, 1, wbytes, 0);
+}
 
 /*!
  * \brief The semantics is similar to DMA_READ_STRETCH but for scratchpad read.
@@ -77,10 +101,32 @@ struct REG {
 /*!
  * \brief Instantiate a 2-d DMA read stream.
  */
-#define SS_2D_READ(addr, stride, bytes, stretch, n, port, padding, source) \
-  INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, padding,    \
-                        DSA_Access, DMO_Read,                              \
-                        source, 1, DSA_ADDRESSABLE_MEM, 0)
+inline void SS_2D_READ(REG addr, REG stride, REG bytes, REG stretch, REG n, int port, int padding, int source) {
+  INSTANTIATE_2D_STREAM(addr, DIV(bytes, DSA_ADDRESSABLE_MEM),
+                        DIV(stride, DSA_ADDRESSABLE_MEM),
+                        DIV(stretch, DSA_ADDRESSABLE_MEM), n, port, padding,
+                        DSA_Access, DMO_Read,
+                        source, 1, DSA_ADDRESSABLE_MEM, 0);
+}
+
+
+/*!
+ * \brief Legacy wrapper of a 2-d stream without stretch.
+ */
+#define SS_DMA_READ(addr, stride, bytes, n, port) \
+  SS_DMA_READ_STRETCH(addr, stride, bytes, (uint64_t) 0, n, port)
+
+
+/*!
+ * \brief Instantiate a 2-d DMA write stream.
+ */
+inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n, int port, int dtype = DSA_ADDRESSABLE_MEM) {
+  INSTANTIATE_2D_STREAM(addr, DIV(bytes, DSA_ADDRESSABLE_MEM),
+                        DIV(stride, DSA_ADDRESSABLE_MEM),
+                        DIV(stretch, DSA_ADDRESSABLE_MEM), n, port,
+                        DP_NoPadding, DSA_Access, DMO_Write,
+                        DMT_DMA, 1, dtype, 0);
+}
 
 
 /*!
@@ -91,43 +137,11 @@ struct REG {
 
 
 /*!
- * \brief Legacy wrapper of a 2-d stream without stretch.
- */
-#define SS_DMA_READ(addr, stride, bytes, n, port) \
-  SS_DMA_READ_STRETCH(addr, stride, bytes, 0, n, port)
-
-
-/*!
- * \brief Instantiate a 2-d DMA write stream.
- */
-#define SS_DMA_2D_WRITE(addr, stride, bytes, stretch, n, port) \
-  INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, \
-                        DP_NoPadding, DSA_Access, DMO_Write,   \
-                        DMT_DMA, 1, DSA_ADDRESSABLE_MEM, 0)
-
-
-/*!
  * \brief This is a wrapper for DMA_WR_INNER and DMA_WR_OUTER to keep bardward compatibility.
  */
 #define SS_DMA_WRITE(port, stride, bytes, n, addr) \
-   SS_DMA_2D_WRITE(addr, stride, bytes, 0, n, port)
+   SS_DMA_2D_WRITE(addr, stride, bytes, (uint64_t) 0, n, port)
 
-#define _CONFIG_2D_STREAM(addr, stride, length, stretch, n) \
-  do {                                                      \
-    CONFIG_1D_STREAM(addr, length);                         \
-    CONFIG_PARAM(DSARF::E2D, stretch, 0, DSARF::L2D, n, 0); \
-    CONFIG_PARAM(DSARF::I2D, stride, 0, 0, (uint64_t)0, 0); \
-  } while (false)
-
-
-#define INSTANTIATE_2D_STREAM(addr, stride, bytes, stretch, n, port, padding, action, op, mem, sig, wbyte, cbyte) \
-  do {                                                                                                            \
-    CONFIG_DTYPE(wbyte, 0, cbyte);                                                                                \
-    _CONFIG_2D_STREAM(addr, (stride) / (wbyte), bytes / (wbyte), stretch / (wbyte), n);                           \
-    int64_t bytes_ = bytes;                                                                                       \
-    uint64_t value = LINEAR_STREAM_MASK(port, padding, action, /*2d*/1, op, mem, sig);                            \
-    __asm__ __volatile__("ss_lin_strm %0" : : "r"(value));                                                        \
-  } while (false)
 
 /*!
  * \brief Discard a num_elem*elem_size bytes of data from the specific port.
@@ -162,64 +176,11 @@ struct REG {
  */
 #define SS_SCR_WRITE(port, bytes, addr) SS_1D_WRITE(port, addr, bytes, DMT_SPAD) 
 
-inline uint64_t _INDIRECT_STREAM_MASK(int in_port,
-                                      int source,
-                                      int ind_mode,
-                                      int lin_mode) {
-  uint64_t value = (in_port) & 127;
-  value = (value << 3) | ((lin_mode) & 7);
-  value = (value << 3) | ((ind_mode) & 7);
-  value = (value << 3) | (DMO_Read);
-  value = (value << 1) | ((source) & 1);
-  return value;
-}
-
-#define SS_INDIRECT_READ(in_port, idx_port, start, dtype, len, source, ind_mode, lin_mode) \
-  do {                                                                                     \
-    int dtype_ = _LOG2((dtype) / DSA_ADDRESSABLE_MEM);                                     \
-    CONFIG_PARAM(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);                          \
-    CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, (dtype_) << 4, 0);                        \
-    auto value = _INDIRECT_STREAM_MASK(in_port, source, ind_mode, lin_mode);               \
-    __asm__ __volatile__("ss_ind_strm %0" : : "r"(value));                                 \
-  } while (false)
-
 // ==================== Above are implemented ====================
-
-// TODO(@were): Fix the buffet functionality.
-#define SS_BUFFET_ALLOCATE(start, buffer_size, total_bytes, port) \
-  __asm__ __volatile__("ss_wr_scr %0, %1, %2" : : "r"(((uint64_t)start << 32ull) | buffer_size), "r"(total_bytes), "i"((port) << 2 | 2))
-
-// TODO(@were): Fix the buffet functionality.
-#define SS_SCR_RD_INNER_BUFFET(size, inport, inport_dtype, shadowport, shadow_dtype) \
-  __asm__ __volatile__("ss_scr_rd %0, %1, %2" : : "r"(shadowport | ((shadow_dtype + 1) << 5) | ((inport_dtype + 1) << 8)), "r"(size), "i"(inport << 2 | 2))
 
 // TODO(@were): Confirm the semantics with @vidushi.
 #define SS_ATOMIC_DFG_CONFIG(dfg_addr_cons, dfg_val_cons, dfg_val_out) \
   __asm__ __volatile__("ss_atom_op %0, %1, %2" : : "r"(dfg_addr_cons), "r"(dfg_val_cons), "i"(dfg_val_out << 1 | 0))
-
-/*!
- * \brief Periodically feed two consts to a port. [(val1 x v1_repeat), (val2 x v2_repeat)] x iters
- * \param port: The destination port.
- * \param val1: The first value to be fed. The data type is 8-byte.
- * \param v1_repeat: The repeat times of val1.
- * \param val2: The second value to be fed. The data type is 8-byte.
- * \param v2_repeat: The repeat times of val2.
- * \param iters: The times of repeating the periods.
- */
-#define SS_2D_CONST(port, val1, v1_repeat, val2, v2_repeat, iters)                                \
-  do {                                                                                            \
-    __asm__ __volatile__("ss_set_iter %0 " : : "r"(iters));                                       \
-    __asm__ __volatile__("ss_const %0, %1, %2 " : : "r"(val1), "r"(v1_repeat), "i"(port|(1<<7))); \
-    __asm__ __volatile__("ss_const %0, %1, %2 " : : "r"(val2), "r"(v2_repeat), "i"(port|(1<<6))); \
-  } while (false)
-
-// TODO(@were): It seems to have some mal-function here. Confirm with @vidushi.
-#define SS_2D_DCONST(port, val1, v1_repeat_port, val2, v2_repeat_port, iters)                                 \
-  do {                                                                                                        \
-    __asm__ __volatile__("ss_set_iter %0 " : : "r"(iters));                                                   \
-    __asm__ __volatile__("ss_const %0, %1, %2 " : : "r"(val1), "r"(v1_repeat_port), "i"(port|(1<<7)|(1<<8))); \
-    __asm__ __volatile__("ss_const %0, %1, %2 " : : "r"(val2), "r"(v2_repeat_port), "i"(port|(1<<6)|(1<<8))); \
-  } while (false)
 
 /*!
  * \brief Configure repeat register of the next instantiated input stream.
@@ -525,3 +486,6 @@ inline uint64_t _INDIRECT_STREAM_MASK(int in_port,
 #define SS_DMA_WRITE_SHF32(output_port, stride, access_size, num_strides, mem_addr) \
   __asm__ __volatile__("ss_stride   %0, %1, 0" : : "r"(stride), "r"(access_size));  \
   __asm__ __volatile__("ss_wr_dma   %0, %1, %2"   : : "r"(mem_addr),  "r"(num_strides), "i"(output_port|0x80))
+
+#undef DIV
+#undef SUB

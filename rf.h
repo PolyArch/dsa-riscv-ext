@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 enum DSARF {
 #define MACRO(x) x,
 #include "./rf.def"
@@ -12,7 +14,7 @@ const char* const REG_NAMES[] = {
 #undef MACRO
 };
 
-const int REG_STICKY[] = {
+const int64_t REG_STICKY[] = {
 0, // ZERO
 1, // TBC
 1, // CSA
@@ -37,7 +39,43 @@ const int REG_STICKY[] = {
 0, // BR
 0, // BSR
 0, // OFL
-1, // VSR
+0, // VSR
+0, // RPT
+0, // ERPT
+0, // EPRD
+0, // RESERVED0
+0, // RESERVED1
+0, // RESERVED2
+0, // RESERVED3
+0, // TOTAL_REG
+};
+
+const int REG_DEFAULT[] = {
+0, // ZERO
+1, // TBC
+0, // CSA
+0, // CFS
+0, // CSR
+0, // SAR
+0, // L1D
+0, // E2D
+0, // I2D
+0, // L2D
+0, // DE2D
+0, // DI2D
+0, // E3D1D
+0, // E3D2D
+0, // I3D
+0, // L3D
+0, // INDP
+0, // ISL
+0, // IL1D
+0, // IL2D
+0, // ILV
+-1, // BR
+0, // BSR
+0, // OFL
+0, // VSR
 0, // RPT
 0, // ERPT
 0, // EPRD
@@ -93,4 +131,3 @@ enum MemoryType {
   DMT_DMA,
   DMT_SPAD
 };
-

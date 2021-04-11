@@ -7,11 +7,19 @@
 
 
 /*! \brief Configure the state register of the DSA. */
-inline void CONFIG_PARAM(int idx1, REG val1, bool s1, int idx2, REG val2, bool s2) {
+inline void CONFIG_PARAM(int idx1, REG val1, bool s1,
+                         int idx2, REG val2, bool s2) {
   int s2_ = (s2) ? ~((1 << 11) - 1) : 0;
   int mask = (idx1) | ((int)(idx2) << 5) | ((s1) << 10) | s2_;
-  INTRINSIC_RRI("ss_cfg_param", val1, val2, mask);
-};
+  INTRINSIC_RRI("ss_cfg_param", val1, val2, (uint64_t) mask);
+}
+
+
+/*! \brief Configure the state register of the DSA. */
+inline void CONFIG_PARAM(int idx1, REG val1, bool s1) {
+  int mask = (idx1) | ((s1) << 10);
+  INTRINSIC_RRI("ss_cfg_param", val1, (uint64_t) 0, (uint64_t) mask);
+}
 
 
 /*!
@@ -23,7 +31,7 @@ inline void CONFIG_PARAM(int idx1, REG val1, bool s1, int idx2, REG val2, bool s
  *       scratchpad.
  */
 inline void SS_CONTEXT(REG bitmask) {
-  CONFIG_PARAM(DSARF::TBC, bitmask, 1, DSARF::ZERO, (uint64_t)0, 0);
+  CONFIG_PARAM(DSARF::TBC, bitmask, 1);
 }
 
 
@@ -60,7 +68,7 @@ inline void CONFIG_DTYPE(int direct, int const_type, int indirect) {
   int const_ = _LOG2((const_type) / DSA_ADDRESSABLE_MEM);
   int indirect_ = _LOG2((indirect) / DSA_ADDRESSABLE_MEM);
   uint64_t value = (direct_) | (const_ << 2) | ((indirect_) << 4);
-  CONFIG_PARAM(DSARF::CSR, value, 1, DSARF::ZERO, (uint64_t)0, 0);
+  CONFIG_PARAM(DSARF::CSR, value, 1);
 }
 
 
@@ -108,8 +116,8 @@ inline uint64_t LINEAR_STREAM_MASK(int port, int padding, int action, int dimens
 }
 
 /*!
- * \brief Instantiate a linear stream
- * \param port The source/destination port
+ * \brief Instantiate a 1d linear stream.
+ * \param port The source/destination port.
  * \param padding The mode of padding. Refer rf.h:Padding for more details.
  *                If it is a write stream, this is useless. Use 0 as a placeholder.
  * \param action 0: access; 1: generate the affine linear value sequence to the port.
@@ -118,45 +126,14 @@ inline uint64_t LINEAR_STREAM_MASK(int port, int padding, int action, int dimens
  * \param operation 0: read, 1: write, 2-7: atomic +, -, *, /, min, and max.
  * \param memory 0: memory, 1: spad.
  */
-inline void INSTANTIATE_1D_STREAM(REG addr, REG bytes,
+inline void INSTANTIATE_1D_STREAM(REG addr, REG length,
                                   int port, int padding, int action, int operation,
                                   int memory, int signal, int wbytes, int cbytes) {
-  CONFIG_DTYPE(wbytes, 0, cbytes);
-  auto length = DIV(bytes, wbytes);
+  CONFIG_DTYPE(wbytes, cbytes, 0);
   CONFIG_1D_STREAM(addr, length);
   auto value = LINEAR_STREAM_MASK(port, padding, action, /*1d*/0, operation, memory, signal);
   INTRINSIC_R("ss_lin_strm", value);
 }
-
-
-/*!
- * \brief addr[0:bytes] -> port
- */
-inline void SS_1D_READ(REG addr,
-                       REG bytes,
-                       int port,
-                       Padding padding,
-                       MemoryType source,
-                       int wbytes = DSA_ADDRESSABLE_MEM) {
-  INSTANTIATE_1D_STREAM(addr, bytes, port, padding, /*Stream Action*/DSA_Access,
-                        /*Memory Operation*/DMO_Read, /*Data Source*/source,
-                        /*Word Signal*/1, /*Word Bytes*/wbytes, /*Const Bytes*/0);
-}
-
-
-/*!
- * \brief port -> addr[0:bytes]
- */
-inline void SS_1D_WRITE(int port,
-                        REG addr,
-                        REG bytes,
-                        MemoryType source,
-                        int wbytes = DSA_ADDRESSABLE_MEM) {
-  INSTANTIATE_1D_STREAM(addr, bytes, port, DP_NoPadding,
-                        DSA_Access, DMO_Write,
-                        source, 1, wbytes, 0);
-}
-
 
 /*!
  * \brief Feed several consts to a port.
@@ -194,13 +171,15 @@ inline void SS_WAIT_ALL() {
  * \param out_port: The source port.
  * \param val: A lvalue reference where the value is written to.
  */
-inline int64_t SS_RECV(int port, int dtype = 8) {
+inline REG SS_RECV(int port, int dtype = 8) {
   int mask = port;
   mask <<= 1;
   mask <<= 2;
   mask |= _LOG2((int) dtype);
   mask <<= 1;
-  INTRINSIC_DRI("ss_recv", res, 0, mask);
+  REG res;
+  REG x0((uint64_t) 0);
+  INTRINSIC_DRI("ss_recv", res, x0, mask);
   return res;
 }
 
@@ -213,5 +192,117 @@ inline int64_t SS_RECV(int port, int dtype = 8) {
  */
 inline void SS_RECURRENCE(int oport, int iport, REG n, int dtype = 8) {
   CONFIG_PARAM(DSARF::L1D, n, false, DSARF::CSR, _LOG2((dtype) / DSA_ADDRESSABLE_MEM), false);
-  INTRINSIC_R("ss_wr_rd", iport | (oport << 7));
+  REG port(iport | (oport << 7));
+  INTRINSIC_R("ss_wr_rd", port);
+}
+
+
+/*!
+ * \brief Set the registers that related to 2d stream.
+ * \param start Register SAR
+ * \param stride Register I2D
+ * \param length Register L1D
+ * \param stretch Register E2D
+ * \param n Register L2D
+ */
+inline void CONFIG_2D_STREAM(REG addr, REG length, REG stride, REG stretch, REG n) {
+  CONFIG_1D_STREAM(addr, length);
+  CONFIG_PARAM(DSARF::E2D, stretch, 0, DSARF::L2D, n, 0);
+  CONFIG_PARAM(DSARF::I2D, stride, 0);
+}
+
+
+/*!
+ * \brief Instantiate a 2d linear stream.
+ */
+inline void INSTANTIATE_2D_STREAM(REG addr, REG l1d, REG stride, REG stretch, REG n,
+                                  int port, int padding, int action, int op, int mem,
+                                  int sig, int wbyte, int cbyte) {                                                                                                            \
+  CONFIG_DTYPE(wbyte, cbyte, 0);
+  CONFIG_2D_STREAM(addr, l1d, stride, stretch, n);
+  auto value = LINEAR_STREAM_MASK(port, padding, action, /*2d*/1, op, mem, sig);
+  INTRINSIC_R("ss_lin_strm", value);
+}
+
+
+inline void CONFIG_3D_STREAM(REG addr, REG l1d, REG stride_2d, REG stretch_2d1d, REG n_2d,
+                             REG delta_stretch_3d2d, REG delta_stride_3d2d,
+                             REG delta_length_3d1d, REG delta_length_3d2d,
+                             REG stride_3d, REG n_3d) {
+  CONFIG_2D_STREAM(addr, l1d, stride_2d, stretch_2d1d, n_2d);
+  CONFIG_PARAM(DSARF::DE2D, delta_stretch_3d2d, 0,
+               DSARF::DI2D, delta_stride_3d2d, 0);
+  CONFIG_PARAM(DSARF::E3D1D, delta_length_3d1d, 0,
+               DSARF::E3D2D, delta_length_3d2d, 0);
+  CONFIG_PARAM(DSARF::I3D, stride_3d, 0, DSARF::L3D, n_3d, 0);
+}
+
+/*!
+ * \brief Instantiate a 2d linear stream.
+ */
+inline void INSTANTIATE_3D_STREAM(REG addr, REG l1d, REG stride_2d, REG stretch_2d1d, REG n_2d,
+                                  REG delta_stretch_3d2d, REG delta_stride_3d2d,
+                                  REG delta_length_3d1d, REG delta_length_3d2d,
+                                  REG stride_3d, REG n_3d,
+                                  int port, int padding, int action, int op, int mem,
+                                  int sig, int wbyte, int cbyte) {                                                                                                            \
+  CONFIG_DTYPE(wbyte, cbyte, 0);
+  CONFIG_3D_STREAM(addr, l1d, stride_2d, stretch_2d1d, n_2d,
+                   delta_stretch_3d2d, delta_stride_3d2d,
+                   delta_length_3d1d, delta_length_3d2d,
+                   stride_3d, n_3d);
+  auto value = LINEAR_STREAM_MASK(port, padding, action, /*3d*/2, op, mem, sig);
+  INTRINSIC_R("ss_lin_strm", value);
+}
+
+
+/*!
+ * \brief Periodically feed two consts to a port. [(val1 x v1_repeat), (val2 x v2_repeat)] x iters
+ * \param port: The destination port.
+ * \param val1: The first value to be fed. The data type is 8-byte.
+ * \param v1_repeat: The repeat times of val1.
+ * \param val2: The second value to be fed. The data type is 8-byte.
+ * \param v2_repeat: The repeat :qtimes of val2.
+ * \param iters: The times of repeating the periods.
+ * \param ctype: The data type of this const stream.
+ */
+inline void SS_2D_CONST(int port, REG v1, REG r1, REG v2, REG r2, REG iters, int cbyte = 8) {
+  REG stride_2d = SUB(v2, v1);
+  REG stretch_2d1d = SUB(r2, r1);
+  INSTANTIATE_3D_STREAM(v1, r1, stride_2d, /*stretch 2d1d*/stretch_2d1d,
+                        /*n2d*/(uint64_t) 2,
+                        /*delta stretch 3d2d*/(uint64_t) 0,
+                        /*delta stride 3d2d*/(uint64_t) 0,
+                        /*delta length 3d1d*/(uint64_t) 0,
+                        /*delta length 3d2d*/(uint64_t) 0,
+                        /*stride 3d*/(uint64_t) 0,
+                        /*n3d*/iters, port, 0, DSA_Generate, 0, 0, 0, 1, cbyte);
+}
+
+inline uint64_t INDIRECT_STREAM_MASK(int in_port,
+                                     int memory,
+                                     int ind_mode,
+                                     int lin_mode) {
+  uint64_t value = (in_port) & 127;
+  value = (value << 3) | ((lin_mode) & 7);
+  value = (value << 3) | ((ind_mode) & 7);
+  value = (value << 3) | (DMO_Read);
+  value = (value << 1) | ((memory) & 1);
+  return value;
+}
+
+inline void SS_INDIRECT_READ(int in_port, int idx_port, REG start, int dtype, REG len,
+                      int memory, int ind_mode, int lin_mode) {
+  int dtype_ = _LOG2((dtype) / DSA_ADDRESSABLE_MEM);
+  CONFIG_PARAM(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);
+  CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, (dtype_) << 4, 0);
+  auto value = INDIRECT_STREAM_MASK(in_port, memory, ind_mode, lin_mode);
+  INTRINSIC_R("ss_ind_strm", value);
+}
+
+inline void SS_BUFFET_ALLOC(int start, int end) {
+  int64_t mask = end;
+  mask <<= 16;
+  mask |= start;
+  CONFIG_PARAM(DSARF::BR, mask, 0);
 }
