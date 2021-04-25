@@ -75,7 +75,7 @@ inline void CONFIG_DTYPE(int direct, int const_type, int indirect) {
 /*!
  * \brief Configure repeat register of the next instantiated input stream.
  * \param port The port to be configured.
- * \param stretch The field of the port to be configured.
+ * \param field The field of the port to be configured.
  * \param value The value to the field to be set
  */
 inline void SS_CONFIG_PORT(int port, int field, REG value) {
@@ -279,30 +279,55 @@ inline void SS_2D_CONST(int port, REG v1, REG r1, REG v2, REG r2, REG iters, int
                         /*n3d*/iters, port, 0, DSA_Generate, 0, 0, 0, 1, cbyte);
 }
 
+/*!
+ * \brief Mask wrapper for indirect memory streams.
+ * \param in_port The destination port.
+ * \param memory The type of the memory, 0: dma, 1: spad.
+ * \param ind_mode a 3-bit hot vector. xx1: if use index from port,
+ *                 x1x: if use 1d length from a port or the l1d register,
+ *                 1xx: if use 2d length from a port or the l2d register.
+ * \param lin_mode 0: 1d indirect stream; 2: 2d indirect stream
+ */
 inline uint64_t INDIRECT_STREAM_MASK(int in_port,
                                      int memory,
                                      int ind_mode,
-                                     int lin_mode) {
+                                     int lin_mode,
+                                     MemoryOperation operation) {
   uint64_t value = (in_port) & 127;
   value = (value << 3) | ((lin_mode) & 7);
   value = (value << 3) | ((ind_mode) & 7);
-  value = (value << 3) | (DMO_Read);
+  value = (value << 3) | (operation);
   value = (value << 1) | ((memory) & 1);
   return value;
 }
 
 inline void SS_INDIRECT_READ(int in_port, int idx_port, REG start, int dtype, REG len,
-                      int memory, int ind_mode, int lin_mode) {
+                             int memory) {
   int dtype_ = _LOG2((dtype) / DSA_ADDRESSABLE_MEM);
   CONFIG_PARAM(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);
   CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, (dtype_) << 4, 0);
-  auto value = INDIRECT_STREAM_MASK(in_port, memory, ind_mode, lin_mode);
+  auto value = INDIRECT_STREAM_MASK(in_port, memory, 1, 0, DMO_Read);
   INTRINSIC_R("ss_ind_strm", value);
 }
 
+/*!
+ * \brief Allocate [start, end) on the spad to be buffet buffer.
+ * \param start The close set of the starting address.
+ * \param end The open set of the end address.
+ */
 inline void SS_BUFFET_ALLOC(int start, int end) {
   int64_t mask = end;
   mask <<= 16;
   mask |= start;
   CONFIG_PARAM(DSARF::BR, mask, 0);
+}
+
+inline void SS_INDIRECT_2D_READ(int in_port, int start_port, int idx_port, int dtype,
+                                int ind_mode, int l1d_port, REG l1d, REG stretch,
+                                int memory) {
+  CONFIG_PARAM(DSARF::INDP, (idx_port) | (l1d_port << 7), 0,
+               DSARF::L1D, l1d, 0);
+  CONFIG_PARAM(DSARF::E2D, stretch, 0, DSARF::CSR, (dtype) << 4, 0);
+  auto value = INDIRECT_STREAM_MASK(in_port, memory, 1, 1, DMO_Read);
+  INTRINSIC_R("ss_ind_strm", value);
 }
