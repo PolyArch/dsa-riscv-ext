@@ -52,10 +52,3 @@
 #ifndef DSA_SUB_LANES
 #define DSA_SUB_LANES 4
 #endif
-
-/*!
- * \brief The unit of addressable memory of the DSA
- */
-#ifndef DSA_ADDRESSABLE_MEM
-#define DSA_ADDRESSABLE_MEM 1
-#endif

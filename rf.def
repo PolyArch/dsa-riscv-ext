@@ -4,6 +4,7 @@ MACRO(CSA)       // Configuration Starting Address
 MACRO(CFS)       // ConFiguration Size in bytes
 MACRO(CSR)       // Control State Register) encodes control states in 32 bits
 MACRO(SAR)       // Starting AddRess of linear memory streams
+MACRO(I1D)       // strIde of a 2D stream
 MACRO(L1D)       // Length of a 1D stream
 MACRO(E2D)       // length strEtch of a 2D stream 
 MACRO(I2D)       // strIde of a 2D stream 

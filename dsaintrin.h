@@ -56,11 +56,11 @@ inline void SS_1D_READ(REG addr,
                        int port,
                        Padding padding,
                        MemoryType source,
-                       int wbytes = DSA_ADDRESSABLE_MEM) {
-  INSTANTIATE_1D_STREAM(addr, DIV(bytes, wbytes), port, padding,
+                       int wbytes = 1) {
+  INSTANTIATE_1D_STREAM(addr, wbytes, DIV(bytes, wbytes), port, padding,
                         /*Stream Action*/DSA_Access,
                         /*Memory Operation*/DMO_Read, /*Data Source*/source,
-                        /*Word Signal*/1, /*Word Bytes*/wbytes, /*Const Bytes*/0);
+                        /*Word Bytes*/wbytes, /*Const Bytes*/0);
 }
 
 
@@ -71,10 +71,10 @@ inline void SS_1D_WRITE(int port,
                         REG addr,
                         REG bytes,
                         MemoryType source,
-                        int wbytes = DSA_ADDRESSABLE_MEM) {
-  INSTANTIATE_1D_STREAM(addr, DIV(bytes, wbytes), port, DP_NoPadding,
+                        int wbytes = 1) {
+  INSTANTIATE_1D_STREAM(addr, wbytes, DIV(bytes, wbytes), port, DP_NoPadding,
                         DSA_Access, DMO_Write,
-                        source, 1, wbytes, 0);
+                        source, wbytes, 0);
 }
 
 /*!
@@ -102,11 +102,10 @@ inline void SS_1D_WRITE(int port,
  * \brief Instantiate a 2-d DMA read stream.
  */
 inline void SS_2D_READ(REG addr, REG stride, REG bytes, REG stretch, REG n, int port, int padding, int source) {
-  INSTANTIATE_2D_STREAM(addr, DIV(bytes, DSA_ADDRESSABLE_MEM),
-                        DIV(stride, DSA_ADDRESSABLE_MEM),
-                        DIV(stretch, DSA_ADDRESSABLE_MEM), n, port, padding,
+  INSTANTIATE_2D_STREAM(addr, 1, bytes, stride,
+                        stretch, n, port, padding,
                         DSA_Access, DMO_Read,
-                        source, 1, DSA_ADDRESSABLE_MEM, 0);
+                        source, 1, 0);
 }
 
 
@@ -120,12 +119,12 @@ inline void SS_2D_READ(REG addr, REG stride, REG bytes, REG stretch, REG n, int 
 /*!
  * \brief Instantiate a 2-d DMA write stream.
  */
-inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n, int port, int dtype = DSA_ADDRESSABLE_MEM) {
-  INSTANTIATE_2D_STREAM(addr, DIV(bytes, DSA_ADDRESSABLE_MEM),
-                        DIV(stride, DSA_ADDRESSABLE_MEM),
-                        DIV(stretch, DSA_ADDRESSABLE_MEM), n, port,
+inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n, int port, int dtype = 1) {
+  INSTANTIATE_2D_STREAM(addr, 1, bytes,
+                        stride,
+                        stretch, n, port,
                         DP_NoPadding, DSA_Access, DMO_Write,
-                        DMT_DMA, 1, dtype, 0);
+                        DMT_DMA, dtype, 0);
 }
 
 
@@ -151,13 +150,12 @@ inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n,
  */
 #define SS_GARBAGE_GENERAL(output_port, num_elem, elem_size)    \
   do {                                                          \
-    auto bytes_ = (bytes) / DSA_ADDRESSABLE_MEM;                \
-    INSTANTIATE_1D_STREAM(0, bytes, port,                       \
-                          DPT_NoPadding, DSA_Access, DMO_Write, \
-                          source,                               \
-                          1,                                    \
-                          DSA_ADDRESSABLE_MEM,                  \
-                          0, DMT_DMA);                          \
+    auto bytes_ = bytes;                                        \
+    INSTANTIATE_1D_STREAM(0, elem_size, num_elem, port,         \
+                          DP_NoPadding, DSA_Access, DMO_Write,  \
+                          DMT_DMA,                              \
+                          elem_size,                            \
+                          0);                                   \
   } while (false)
 
 /*!
