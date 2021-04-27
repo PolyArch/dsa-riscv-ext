@@ -148,14 +148,12 @@ inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n,
  * \param num_elem: The number of elements to discard.
  * \param elem_size: The data size of each element.
  */
-#define SS_GARBAGE_GENERAL(output_port, num_elem, elem_size)    \
-  do {                                                          \
-    auto bytes_ = bytes;                                        \
-    INSTANTIATE_1D_STREAM(0, elem_size, num_elem, port,         \
-                          DP_NoPadding, DSA_Access, DMO_Write,  \
-                          DMT_DMA,                              \
-                          elem_size,                            \
-                          0);                                   \
+#define SS_GARBAGE_GENERAL(output_port, num_elem elem_size)   \
+  do {                                                         \
+    auto bytes_ = bytes;                                       \
+    INSTANTIATE_1D_STREAM(0, elem_size, num_elem, port,        \
+                          DP_NoPadding, DSA_Access, DMO_Write, \
+                          DMT_DMA, elem_size, 0);              \
   } while (false)
 
 /*!
