@@ -21,6 +21,7 @@ const int64_t REG_STICKY[] = {
 1, // CFS
 1, // CSR
 0, // SAR
+0, // I1D
 0, // L1D
 0, // E2D
 0, // I2D
@@ -57,6 +58,7 @@ const int REG_DEFAULT[] = {
 0, // CFS
 0, // CSR
 0, // SAR
+0, // I1D
 0, // L1D
 0, // E2D
 0, // I2D
