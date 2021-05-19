@@ -268,14 +268,14 @@ inline void INSTANTIATE_3D_STREAM(REG addr, REG stride_1d, REG l1d, REG stride_2
 inline void SS_2D_CONST(int port, REG v1, REG r1, REG v2, REG r2, REG iters, int cbyte = 8) {
   REG stride_2d = SUB(v2, v1);
   REG stretch_2d1d = SUB(r2, r1);
-  INSTANTIATE_3D_STREAM(v1, r1, stride_2d, /*stretch 2d1d*/stretch_2d1d,
+  INSTANTIATE_3D_STREAM(v1, (uint64_t) 0, r1, stride_2d, /*stretch 2d1d*/stretch_2d1d,
                         /*n2d*/(uint64_t) 2,
                         /*delta stretch 3d2d*/(uint64_t) 0,
                         /*delta stride 3d2d*/(uint64_t) 0,
                         /*delta length 3d1d*/(uint64_t) 0,
                         /*delta length 3d2d*/(uint64_t) 0,
                         /*stride 3d*/(uint64_t) 0,
-                        /*n3d*/iters, port, 0, DSA_Generate, 0, 0, 0, 1, cbyte);
+                        /*n3d*/iters, port, 0, DSA_Generate, 0, 0, 1, cbyte);
 }
 
 /*!
