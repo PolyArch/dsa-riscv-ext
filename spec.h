@@ -50,5 +50,12 @@
  * \brief The power of two of composabilities.
  */
 #ifndef DSA_SUB_LANES
-#define DSA_SUB_LANES 4
+#define DSA_SUB_LANES 3
+#endif
+
+/*!
+ * \brief The fixed digital point of port repeat.
+ */
+#ifndef DSA_REPEAT_DIGITAL_POINT
+#define DSA_REPEAT_DIGITAL_POINT 4
 #endif

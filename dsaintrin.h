@@ -41,6 +41,7 @@ struct REG {
 
 #define DIV(a, b) ((a) / (b))
 #define SUB(a, b) ((a) - (b))
+#define SHL(a, b) ((a) << (b))
 
 #include "intrin_impl.h"
 
@@ -485,3 +486,4 @@ inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n,
 
 #undef DIV
 #undef SUB
+#undef SHL
