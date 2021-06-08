@@ -173,6 +173,19 @@ inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n,
  */
 #define SS_SCR_WRITE(port, bytes, addr) SS_1D_WRITE(port, addr, bytes, DMT_SPAD) 
 
+/*!
+ * \brief Indirect 1d read.
+ * 
+ */
+#define SS_INDIRECT_READ(in_port, idx_port, start, dtype, len, memory) \
+  INSTANTIATE_1D_INDIRECT(in_port, idx_port, start, dtype, len, memory, DMO_Read)
+
+/*!
+ * \brief Indirect 1d atomic operation.
+ */
+#define SS_INDIRECT_ATOMIC(operand_port, idx_port, start, dtype, len, memory, operation) \
+  INSTANTIATE_1D_INDIRECT(operand_port, idx_port, start, dtype, len, memory, operation)
+
 // ==================== Above are implemented ====================
 
 // TODO(@were): Confirm the semantics with @vidushi.

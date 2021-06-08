@@ -306,22 +306,13 @@ inline uint64_t INDIRECT_STREAM_MASK(int port,
   return value;
 }
 
-inline void SS_INDIRECT_READ(int in_port, int idx_port, REG start, int dtype, REG len,
-                             int memory) {
+inline void INSTANTIATE_1D_INDIRECT(int target_port, int idx_port,
+                                    REG start, int dtype, REG len,
+                                    int memory, MemoryOperation operation) {
   int dtype_ = _LOG2(dtype);
   CONFIG_PARAM(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);
   CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, (dtype_) << 4, 0);
-  auto value = INDIRECT_STREAM_MASK(in_port, memory, 1, 0, DMO_Read);
-  INTRINSIC_R("ss_ind_strm", value);
-}
-
-inline void SS_INDIRECT_ATOMIC(int operand_port, int idx_port,
-                               REG start, int dtype, REG len,
-                               int memory, MemoryOperation operation) {
-  int dtype_ = _LOG2(dtype);
-  CONFIG_PARAM(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);
-  CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, (dtype_) << 4, 0);
-  auto value = INDIRECT_STREAM_MASK(operand_port, memory, 1, 0, operation);
+  auto value = INDIRECT_STREAM_MASK(target_port, memory, 1, 0, operation);
   INTRINSIC_R("ss_ind_strm", value);
 }
 
