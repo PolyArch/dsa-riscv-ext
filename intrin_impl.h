@@ -286,23 +286,23 @@ inline void SS_2D_CONST(int port, REG v1, REG r1, REG v2, REG r2, REG iters, int
 
 /*!
  * \brief Mask wrapper for indirect memory streams.
- * \param in_port The destination port.
+ * \param port The destination port.
  * \param memory The type of the memory, 0: dma, 1: spad.
  * \param ind_mode a 3-bit hot vector. xx1: if use index from port,
  *                 x1x: if use 1d length from a port or the l1d register,
  *                 1xx: if use 2d length from a port or the l2d register.
  * \param lin_mode 0: 1d indirect stream; 2: 2d indirect stream
  */
-inline uint64_t INDIRECT_STREAM_MASK(int in_port,
+inline uint64_t INDIRECT_STREAM_MASK(int port,
                                      int memory,
-                                     int ind_mode,
-                                     int lin_mode,
+                                     int ind,
+                                     int dim,
                                      MemoryOperation operation) {
-  uint64_t value = (in_port) & 127;
-  value = (value << 3) | ((lin_mode) & 7);
-  value = (value << 3) | ((ind_mode) & 7);
-  value = (value << 3) | (operation);
-  value = (value << 1) | ((memory) & 1);
+  uint64_t value = dim;
+  value = (value << 3) | ind;
+  value = (value << 1) | memory;
+  value = (value << 3) | ((int) operation);
+  value = (value << 7) | port;
   return value;
 }
 
@@ -312,6 +312,16 @@ inline void SS_INDIRECT_READ(int in_port, int idx_port, REG start, int dtype, RE
   CONFIG_PARAM(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);
   CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, (dtype_) << 4, 0);
   auto value = INDIRECT_STREAM_MASK(in_port, memory, 1, 0, DMO_Read);
+  INTRINSIC_R("ss_ind_strm", value);
+}
+
+inline void SS_INDIRECT_ATOMIC(int operand_port, int idx_port,
+                               REG start, int dtype, REG len,
+                               int memory, MemoryOperation operation) {
+  int dtype_ = _LOG2(dtype);
+  CONFIG_PARAM(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);
+  CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, (dtype_) << 4, 0);
+  auto value = INDIRECT_STREAM_MASK(operand_port, memory, 1, 0, operation);
   INTRINSIC_R("ss_ind_strm", value);
 }
 
