@@ -62,12 +62,34 @@ inline void SS_STREAM_RESET() {
 }
 
 
-/*! \brief Config the data type of the on coming stream. */
-inline uint64_t DTYPE_MASK(int direct, int const_type, int indirect) {
-  int direct_ = _LOG2(direct);
+/*!
+ * \brief Concatenate the data type bitmask.
+ * \param dtype The direct memory access data type. [0:1]
+ * \param const_type The const stream data type. [2:3]
+ * \param index_type The indirect index data type. [4:5]
+ * \param operand_type The indirect operand data type. [6:7]
+ * \param offset_type The indirect starting address data type. [8:9]
+ * \param l1d_type The indirect inner dimension length data type. [10:11]
+ */
+inline uint64_t DTYPE_MASK(int dtype = 0,
+                           int const_type = 0,
+                           int index_type = 0,
+                           int operand_type = 0,
+                           int offset_type = 0,
+                           int l1d_type = 0) {
+  int direct_ = _LOG2(dtype);
   int const_ = _LOG2(const_type);
-  int indirect_ = _LOG2(indirect);
-  uint64_t value = (direct_) | (const_ << 2) | ((indirect_) << 4);
+  int index_ = _LOG2(index_type);
+  int operand_ = _LOG2(operand_type);
+  int offset_ = _LOG2(offset_type);
+  int l1d_ = _LOG2(l1d_type);
+  uint64_t value = 0;
+  value = (value << 2) | l1d_;
+  value = (value << 2) | offset_;
+  value = (value << 2) | operand_;
+  value = (value << 2) | index_;
+  value = (value << 2) | const_;
+  value = (value << 2) | direct_;
   return value;
 }
 
@@ -306,12 +328,12 @@ inline uint64_t INDIRECT_STREAM_MASK(int port,
   return value;
 }
 
-inline void INSTANTIATE_1D_INDIRECT(int target_port, int idx_port,
-                                    REG start, int dtype, REG len,
-                                    int memory, MemoryOperation operation) {
-  int dtype_ = _LOG2(dtype);
+inline void INSTANTIATE_1D_INDIRECT(int target_port, int target_type, int idx_port, int index_type,
+                                    REG start, REG stride1d, REG len, int memory,
+                                    MemoryOperation operation) {
   CONFIG_PARAM(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);
-  CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, (dtype_) << 4, 0);
+  CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, DTYPE_MASK(target_type, 0, index_type), 0);
+  CONFIG_PARAM(DSARF::I1D, stride1d, 0);
   auto value = INDIRECT_STREAM_MASK(target_port, memory, 1, 0, operation);
   INTRINSIC_R("ss_ind_strm", value);
 }

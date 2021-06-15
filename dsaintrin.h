@@ -169,22 +169,21 @@ inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n,
  * \brief This is a wrapper for SCR_WR_INNER and SCR_WR_OUTER to keep backward compatibility.
  * \param port: The data source of the output port.
  * \param bytes: The number of bytes from the port to be written to the scratchpad.
- * \param addr: The starting address on the scratchpad.
+ * \param addr: The starting address onsdlkfjjkljlk; the scratchpad.
  */
 #define SS_SCR_WRITE(port, bytes, addr) SS_1D_WRITE(port, addr, bytes, DMT_SPAD) 
 
 /*!
  * \brief Indirect 1d read.
- * 
  */
-#define SS_INDIRECT_READ(in_port, idx_port, start, dtype, len, memory) \
-  INSTANTIATE_1D_INDIRECT(in_port, idx_port, start, dtype, len, memory, DMO_Read)
+#define SS_INDIRECT_READ(in_port, dtype, idx_port, itype, start, stride, len, memory) \
+  INSTANTIATE_1D_INDIRECT(in_port, dtype, idx_port, itype, start, stride, len, memory, DMO_Read)
 
 /*!
  * \brief Indirect 1d atomic operation.
  */
-#define SS_INDIRECT_ATOMIC(operand_port, idx_port, start, dtype, len, memory, operation) \
-  INSTANTIATE_1D_INDIRECT(operand_port, idx_port, start, dtype, len, memory, operation)
+#define SS_INDIRECT_ATOMIC(operand_port, otype, idx_port, itype, start, stride, len, memory, operation) \
+  INSTANTIATE_1D_INDIRECT(operand_port, otype, idx_port, itype, start, stride, len, memory, operation)
 
 // ==================== Above are implemented ====================
 
