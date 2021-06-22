@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "dsa/spec.h"
-#include "dsa/rf.h"
+#include "dsa-ext/spec.h"
+#include "dsa-ext/rf.h"
 
 // Magic sentinal for matching
 #define SENTINAL (((uint64_t)1)<<63)

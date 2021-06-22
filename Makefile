@@ -17,12 +17,13 @@ RISCVInstrInfoSS.td: isa.ext
 
 .PHONY: install-header
 install-header:
+	mkdir -p $(RISCV)/include/dsa-ext/
 	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(RISCV)/include/ss_insts.h
 	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(RISCV)/include/dsaintrin.h
 	ln -sf `git rev-parse --show-toplevel`/intrin_impl.h $(RISCV)/include/intrin_impl.h
-	ln -sf `git rev-parse --show-toplevel`/spec.h $(RISCV)/include/dsa/spec.h
-	ln -sf `git rev-parse --show-toplevel`/rf.h $(RISCV)/include/dsa/rf.h
-	ln -sf `git rev-parse --show-toplevel`/rf.def $(RISCV)/include/dsa/rf.def
+	ln -sf `git rev-parse --show-toplevel`/spec.h $(RISCV)/include/dsa-ext/spec.h
+	ln -sf `git rev-parse --show-toplevel`/rf.h $(RISCV)/include/dsa-ext/rf.h
+	ln -sf `git rev-parse --show-toplevel`/rf.def $(RISCV)/include/dsa-ext/rf.def
 
 clean:
 	rm -f opcodes-dsa
@@ -30,9 +31,7 @@ clean:
 	rm -f $(SS_TOOLS)/include/ss_insts.h
 	rm -f $(SS_TOOLS)/include/dsaintrin.h
 	rm -f $(SS_TOOLS)/include/intrin_impl.h
-	rm -f $(SS_TOOLS)/include/dsa/rf.h
-	rm -f $(SS_TOOLS)/include/dsa/rf.def
-	rm -f $(SS_TOOLS)/include/dsa/spec.h
+	rm -rf $(SS_TOOLS)/include/dsa-ext/
 	rm -f ../llvm-project/llvm/lib/Target/RISCV/RISCVInstrInfoSS.td
 	cd ../riscv-gnu-toolchain/riscv-binutils && git stash && git stash clear
 
