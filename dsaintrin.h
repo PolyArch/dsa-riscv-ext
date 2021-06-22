@@ -42,12 +42,18 @@ struct REG {
 #define DIV(a, b) ((a) / (b))
 #define SUB(a, b) ((a) - (b))
 #define SHL(a, b) ((a) << (b))
+#define MUL(a, b) ((a) * (b))
 
 #include "intrin_impl.h"
 
 #undef INTRINSIC_RRI
 #undef INTRINSIC_RI
 #undef INTRINSIC_R
+
+#undef DIV
+#undef SUB
+#undef SHL
+#undef MUL
 
 /*!
  * \brief addr[0:bytes] -> port
@@ -58,7 +64,7 @@ inline void SS_1D_READ(REG addr,
                        Padding padding,
                        MemoryType source,
                        int wbytes = 1) {
-  INSTANTIATE_1D_STREAM(addr, wbytes, DIV(bytes, wbytes), port, padding,
+  INSTANTIATE_1D_STREAM(addr, wbytes, bytes / wbytes, port, padding,
                         /*Stream Action*/DSA_Access,
                         /*Memory Operation*/DMO_Read, /*Data Source*/source,
                         /*Word Bytes*/wbytes, /*Const Bytes*/0);
@@ -73,7 +79,7 @@ inline void SS_1D_WRITE(int port,
                         REG bytes,
                         MemoryType source,
                         int wbytes = 1) {
-  INSTANTIATE_1D_STREAM(addr, wbytes, DIV(bytes, wbytes), port, DP_NoPadding,
+  INSTANTIATE_1D_STREAM(addr, wbytes, bytes / wbytes, port, DP_NoPadding,
                         DSA_Access, DMO_Write,
                         source, wbytes, 0);
 }
@@ -496,6 +502,3 @@ inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n,
   __asm__ __volatile__("ss_stride   %0, %1, 0" : : "r"(stride), "r"(access_size));  \
   __asm__ __volatile__("ss_wr_dma   %0, %1, %2"   : : "r"(mem_addr),  "r"(num_strides), "i"(output_port|0x80))
 
-#undef DIV
-#undef SUB
-#undef SHL

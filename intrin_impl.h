@@ -109,13 +109,13 @@ inline void SS_CONFIG_PORT(int port, int field, REG value) {
 
 /*! \brief The next stream instantiated from this port will be repeated n times. */
 inline void SS_REPEAT_PORT(int port, REG n) {
-  SS_CONFIG_PORT(port, DPF_PortRepeat, SHL(n, DSA_REPEAT_DIGITAL_POINT));
+  SS_CONFIG_PORT(port, DPF_PortRepeat, MUL(n, 1 << DSA_REPEAT_DIGITAL_POINT));
 }
 
 
 /*! \brief A delta will be applied on the times of repeat after each time the repeat is done. */
 inline void SS_REPEAT_STRETCH(int port, REG n) {
-  SS_CONFIG_PORT(port, DPF_PortRepeatStretch, SHL(n, DSA_REPEAT_DIGITAL_POINT));
+  SS_CONFIG_PORT(port, DPF_PortRepeatStretch, MUL(n, 1 << DSA_REPEAT_DIGITAL_POINT));
 }
 
 
