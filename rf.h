@@ -109,12 +109,12 @@ enum BarrierFlag {
 enum MemoryOperation {
   DMO_Read,
   DMO_Write,
-  DMO_AtomAdd,
-  DMO_AtomSub,
-  DMO_AtomMul,
-  DMO_AtomDiv,
-  DMO_AtomMax,
-  DMO_AtomMin,
+  DMO_Add,
+  DMO_Sub,
+  DMO_Mul,
+  DMO_Min,
+  DMO_Max,
+  DMO_Unkown,
 };
 
 enum StreamAction {
