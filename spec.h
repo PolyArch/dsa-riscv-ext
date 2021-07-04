@@ -173,11 +173,11 @@ struct Specification {
   /*!
    * \brief DRAM bandwidth in bytes.
    */
-  int dma_bandwidth{64};
+  int dma_bandwidth{16};
   /*!
    * \brief Constant generator bandwidth in bytes.
    */
-  int const_bandwidth;
+  int const_bandwidth{64};
   /*!
    * \brief The granularity of the decomposable spatial data path. By default it is
    *        byte decomposable.
