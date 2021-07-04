@@ -22,6 +22,7 @@ install-header:
 	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(RISCV)/include/dsaintrin.h
 	ln -sf `git rev-parse --show-toplevel`/intrin_impl.h $(RISCV)/include/intrin_impl.h
 	ln -sf `git rev-parse --show-toplevel`/spec.h $(RISCV)/include/dsa-ext/spec.h
+	ln -sf `git rev-parse --show-toplevel`/spec.attr $(RISCV)/include/dsa-ext/spec.attr
 	ln -sf `git rev-parse --show-toplevel`/rf.h $(RISCV)/include/dsa-ext/rf.h
 	ln -sf `git rev-parse --show-toplevel`/rf.def $(RISCV)/include/dsa-ext/rf.def
 
