@@ -350,6 +350,15 @@ inline void SS_BUFFET_ALLOC(int start, int end) {
   CONFIG_PARAM(DSARF::BR, mask, 0);
 }
 
+/*!
+ * \brief Allocate [start, end) on the spad to be buffet buffer.
+ * \param start The close set of the starting address.
+ * \param end The open set of the end address.
+ */
+inline void SS_BUFFET_DEALLOC() {
+  SS_BUFFET_ALLOC(-1, -1);
+}
+
 inline void SS_INDIRECT_2D_READ(int in_port, int start_port, int idx_port, int dtype,
                                 int ind_mode, int l1d_port, REG l1d, REG stretch,
                                 int memory) {
