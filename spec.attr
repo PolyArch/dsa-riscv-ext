@@ -1,7 +1,7 @@
 SPEC_ATTR(std::string, adg_file, "")	// The name of ADG file to specify the spatial data path.
 SPEC_ATTR(int, num_of_lanes, 8)	        // The number of spatial lanes.
-SPEC_ATTR(int, dma_bandwidth, 16)       // DRAM bandwidth in bytes.
-SPEC_ATTR(int, const_bandwidth, 16)     // brief Constant generator bandwidth in bytes.
+SPEC_ATTR(int, dma_bandwidth, 64)       // DRAM bandwidth in bytes.
+SPEC_ATTR(int, const_bandwidth, 64)     // brief Constant generator bandwidth in bytes.
 SPEC_ATTR(int, dsa_granularity, 1)      // The granularity of the decomposable spatial data path. By default it is byte decomposable.
 SPEC_ATTR(int, dsa_composability, 4)    // The power of multiplier of the composability. 4 means 2^0, 2^1, 2^2, and 2^3.
 SPEC_ATTR(int, dsa_buffet_slots, 4)     // The number of concurrent buffet streams.
