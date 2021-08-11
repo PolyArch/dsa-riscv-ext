@@ -64,7 +64,7 @@ inline void SS_1D_READ(REG addr,
                        Padding padding,
                        MemoryType source,
                        int wbytes = 1) {
-  INSTANTIATE_1D_STREAM(addr, wbytes, bytes / wbytes, port, padding,
+  INSTANTIATE_1D_STREAM(addr, 1, bytes / wbytes, port, padding,
                         /*Stream Action*/DSA_Access,
                         /*Memory Operation*/DMO_Read, /*Data Source*/source,
                         /*Word Bytes*/wbytes, /*Const Bytes*/0);
@@ -79,7 +79,7 @@ inline void SS_1D_WRITE(int port,
                         REG bytes,
                         MemoryType source,
                         int wbytes = 1) {
-  INSTANTIATE_1D_STREAM(addr, wbytes, bytes / wbytes, port, DP_NoPadding,
+  INSTANTIATE_1D_STREAM(addr, 1, bytes / wbytes, port, DP_NoPadding,
                         DSA_Access, DMO_Write,
                         source, wbytes, 0);
 }
@@ -127,7 +127,7 @@ inline void SS_2D_READ(REG addr, REG stride, REG bytes, REG stretch, REG n, int 
  * \brief Instantiate a 2-d DMA write stream.
  */
 inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n, int port, int dtype = 1) {
-  INSTANTIATE_2D_STREAM(addr, 1, bytes,
+  INSTANTIATE_2D_STREAM(addr, dtype, bytes,
                         stride,
                         stretch, n, port,
                         DP_NoPadding, DSA_Access, DMO_Write,
