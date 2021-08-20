@@ -441,6 +441,19 @@
   __asm__ __volatile__("ss_cfg_port %0, t0, %1" : : "r"(repeat_times), "i"((stretch) << 1))
 
 /*!
+ * type: can be 0:normal stream, 1:bypass stream, 2: taskflow stream
+ * outer_port: specifies the port that adds another indirection level to
+ * taskflow streams
+ * map: specifies which inputs are specified by the above port
+ * 1 to set repeat_times to its default value
+ */
+#define SS_CONFIG_STREAM(type, outer_port, map) \
+  __asm__ __volatile__("ss_cfg_port %0, %1, 0" : : "r"(1), "r"(1 | (type << 1) | (outer_port << 3) | (map << 19)))
+
+#define SS_CONFIG_STREAM_PORT_EXPLICIT(type, outer_port, map, repeat_times, stretch, is_repeat_port) \
+  __asm__ __volatile__("ss_cfg_port %0, %1, %2" : : "r"(repeat_times), "r"(1 | (type << 1) | (outer_port << 3) | (map << 19)), "i"(((stretch) << 1) | is_repeat_port))
+
+/*!
  * \brief Configure repeat register of the next instantiated input stream.
  * \param stretch: This is an int value that adds on the repeat times.
  */
@@ -560,27 +573,36 @@
 // #define SS_CONFIG_ATOMIC_SCR_OP(addr_type, val_type, output_type, val_num) \
 //   __asm__ __volatile__("ss_cfg_atom_op %0, t0, %1" : : "r"(val_num), "i"( ((val_type<<4)&0x1ADB0 | (output_type<<2)&0x44C | (addr_type)&0x3)))
 
+// FIXME: @vidushi: Below is with the updated ISA that might have different
+// number of bits for registers and immediate. Fix it later.
+#define SS_CONFIG_ATOMIC_SCR_OP(addr_type, val_type, output_type, val_num, num_updates, is_update_port) \
+  if (is_update_port == 1) { \
+    __asm__ __volatile__("ss_cfg_atom_op %0, %1, %2" : : "r"(val_num), "r"(num_updates | 1<<16), "i"( ((val_type<<4)&0x1ADB0 | (output_type<<2)&0x44C | (addr_type)&0x3))); \
+  } else { \
+    __asm__ __volatile__("ss_cfg_atom_op %0, %1, %2" : : "r"(val_num), "r"(num_updates | 0<<16), "i"( ((val_type<<4)&0x1ADB0 | (output_type<<2)&0x44C | (addr_type)&0x3))); \
+  } \
+
 /*!
  * \brief Configure the indirect atomic operation. Something like a[b[i]] += c[i].
  * \param addr_type: The data type of the address value (b)
  * \param val_type: The data type of the operand (c)
  * \param output_type: The data type of the result (a)
  * \param val_num: sizeof(val_type) * val_num together determine the number of bytes to read.
- * \param num_dates: The number of outputs
+ * \param num_updates: The number of outputs
  * \param is_update_port: Where the operation happens, 0: near storage units, 1: CGRA.
  */
-#define SS_CONFIG_ATOMIC_SCR_OP(addr_type, val_type, output_type, val_num, num_updates, is_update_port)      \
-  do {                                                                                                       \
-    if (is_update_port == 1) {                                                                               \
-      auto __cfg_imm__ = ((val_type<<4)&0x1ADB0 | (output_type<<2)&0x44C | (addr_type)&0x3);                 \
-      auto __update__  = num_updates | 1<<16;                                                                \
-      __asm__ __volatile__("ss_cfg_atom_op %0, %1, %2" : : "r"(val_num), "r"(__update__), "i"(__cfg_imm__)); \
-    } else {                                                                                                 \
-      auto __update__ = num_updates | 0<<16;                                                                 \
-      auto __cfg_imm__ = ((val_type<<4)&0x1ADB0 | (output_type<<2)&0x44C | (addr_type)&0x3);                 \
-      __asm__ __volatile__("ss_cfg_atom_op %0, %1, %2" : : "r"(val_num), "r"(__update__), "i"(__cfg_imm__)); \
-    }                                                                                                        \
-  } while(false)
+// #define SS_CONFIG_ATOMIC_SCR_OP(addr_type, val_type, output_type, val_num, num_updates, is_update_port)      \
+//   do {                                                                                                       \
+//     if (is_update_port == 1) {                                                                               \
+//       auto __cfg_imm__ = ((val_type<<4)&0x1ADB0 | (output_type<<2)&0x44C | (addr_type)&0x3);                 \
+//       auto __update__  = num_updates | 1<<16;                                                                \
+//       __asm__ __volatile__("ss_cfg_atom_op %0, %1, %2" : : "r"(val_num), "r"(__update__), "i"(__cfg_imm__)); \
+//     } else {                                                                                                 \
+//       auto __update__ = num_updates | 0<<16;                                                                 \
+//       auto __cfg_imm__ = ((val_type<<4)&0x1ADB0 | (output_type<<2)&0x44C | (addr_type)&0x3);                 \
+//       __asm__ __volatile__("ss_cfg_atom_op %0, %1, %2" : : "r"(val_num), "r"(__update__), "i"(__cfg_imm__)); \
+//     }                                                                                                        \
+//   } while(false)
 
 
 /*!
@@ -628,7 +650,19 @@
 #define SS_INDIRECT(ind_port, addr_offset, num_elem, input_port)                    \
   __asm__ __volatile__("ss_stride   %0, %1, %2" : : "r"(8), "r"(8), "i"((0<<10)));  \
   __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),  \
-                                                  "i"((input_port<<5) | (ind_port)))
+                                                  "i"((input_port<<6) | (ind_port)))
+
+#define SS_COAL_INDIRECT(ind_port, addr_offset, num_elem, input_port, coal_index_port, src_grp, dst_grp)                    \
+  __asm__ __volatile__("ss_stride   %0, %1, %2" : : "r"(1<<31 | coal_index_port | src_grp<<8 | dst_grp << 16), "r"(8), "i"(0<<10)); \
+  __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),  \
+                                                  "i"((input_port<<6) | (ind_port)))
+
+#define SS_COAL_INDIRECT_2D(ind_port, addr_offset, num_elem, access_size, num_elem_port, input_port, coal_index_port, src_grp, dst_grp)           \
+  __asm__ __volatile__("ss_stride   %0, %1, %2" : : "r"(1<<31 | dst_grp << 16 | src_grp<<8 | coal_index_port), "r"(access_size), "i"(num_elem_port | (1<<10))); \
+  __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem), \
+                                                  "i"((input_port<<6) | (ind_port)))
+
+
 
 /*!
  * \brief Call after CONFIG_INDIRECT to instantiate an indirect stream with unfixed length.
@@ -636,19 +670,37 @@
  * \param addr_offset: The starting address of the array.
  * \param stride: The stride after reading access_size bytes.
  * \param access_size: The continous bytes to read.
+ * \param stretch: The difference in access size for the next stride.
  * \param num_elem_port: The port generates the length of each stream.
  * \param input_port: The destination of this stream.
  */
 #define SS_INDIRECT_2D(ind_port, addr_offset, num_elem, stride, access_size, num_elem_port, input_port)           \
   __asm__ __volatile__("ss_stride   %0, %1, %2" : : "r"(stride), "r"(access_size), "i"(num_elem_port | (1<<10))); \
   __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),                                \
-                                                  "i"((input_port<<5) | (ind_port)))
+                                                  "i"((input_port<<6) | (ind_port)))
+
+#define SS_INDIRECT_2D_STRETCH(ind_port, addr_offset, num_elem, stride, access_size, stretch, num_elem_port, input_port)           \
+  __asm__ __volatile__("ss_stride   %0, %1, %2" : : "r"(stride), "r"(access_size), "i"(num_elem_port | (1<<10) | (stretch << 5))); \
+  __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),                                \
+                                                  "i"((input_port<<6) | (ind_port)))
 
 /*! \brief This is similar to INDIRECT_2D but for scratchpad read. */
 #define SS_INDIRECT_SCR_2D(ind_port, addr_offset, num_elem, stride, access_size, num_elem_port, input_port)       \
   __asm__ __volatile__("ss_stride   %0, %1, %2" : : "r"(stride), "r"(access_size), "i"(num_elem_port | (1<<10))); \
-  __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),                                \
-                                                  "i"((1<<10) | (input_port<<5) | (ind_port)));
+  __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"((1<<30) | num_elem),      \
+                                                  "i"((1<<10) | (input_port<<6) | (ind_port)));
+//  __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),                                \
+//                                                  "i"((1<<10) | (input_port<<6) | (ind_port)));
+
+/*! \brief This is similar to INDIRECT but for scratchpad read. */
+#define SS_INDIRECT_SCR(ind_port, addr_offset, num_elem, input_port) \
+  __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"((1<<30) | num_elem),\
+                                                  "i"((input_port<<6) | (ind_port)));
+
+//  __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),\
+//                                                  "i"((1<<10) | (input_port<<5) | (ind_port)));
+
+
 
 /*! \brief This is similar to INDIRECT_2D but for scratchpad write. */
 #define SS_INDIRECT_2D_WR(ind_port, addr_offset, num_elem, stride, access_size, num_elem_port, output_port) \
@@ -665,12 +717,6 @@
 #define SS_INDIRECT_WR_SCR(ind_port, addr_offset, num_elem, output_port) \
   __asm__ __volatile__("ss_ind_wr %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),\
                                                   "i"((1<<10) | (output_port<<5) | (ind_port)));
-
-
-/*! \brief This is similar to INDIRECT but for scratchpad read. */
-#define SS_INDIRECT_SCR(ind_port, addr_offset, num_elem, input_port) \
-  __asm__ __volatile__("ss_ind    %0, %1, %2" : : "r"(addr_offset), "r"(num_elem),\
-                                                  "i"((1<<10) | (input_port<<5) | (ind_port)));
 
 
 #define SS_CONFIG_MEM_MAP(part_size, active_core_bv, map_type) \
@@ -717,14 +763,21 @@
 #define SS_WAIT_SCR_RD() \
   __asm__ __volatile__("ss_wait t0, t0, 4"); \
 
+/*!
+ * \brief No operations will be issued until both the task argument and task coalescer buffers are not empty
+ */
+#define SS_WAIT_TASKS() \
+  __asm__ __volatile__("ss_wait t0, t0, 8"); \
+
 // TODO(@were): Confirm this with vidushi.
 //wait for all prior scratch reads to be complete (128*8?)
 #define SS_GLOBAL_WAIT(num_threads) \
   __asm__ __volatile__("ss_wait %0, t0, 128" :: "r"(num_threads)); \
 
 //wait for all prior scratch reads to be complete (NOT IMPLEMENTED IN SIMULTOR YET)
-#define SS_WAIT_SCR_RD_QUEUED() \
-  __asm__ __volatile__("ss_wait t0, t0, 8"); \
+// #define SS_WAIT_SCR_RD_QUEUED() \
+//   __asm__ __volatile__("ss_wait t0, t0, 8"); \
+
 
 //wait for all prior scratch reads to be complete (NOT IMPLEMENTED IN SIMULTOR YET)
 #define SS_WAIT_MEM_WR() \
@@ -751,6 +804,12 @@
 #define SCR_MEM_PORT (24)
 #define SCR_SCR_PORT (25)
 #define SCR_REM_PORT (26)
+
+// Special ports for taskflow
+// #define P_NUM_TASKS (32)
+// #define P_SCHED_LOC (33)
+// #define P_SCHED_PAR_LOC (34)
+// #define P_DIRECT_BYTES (35)
 
 // TODO(@were): Confirm if this is used.
 #define SS_SCR_WR_PART(addr, acc_size, port, part_size) \
