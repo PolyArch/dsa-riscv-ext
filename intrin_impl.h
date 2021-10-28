@@ -138,6 +138,29 @@ inline uint64_t LINEAR_STREAM_MASK(int port, int padding, int action, int dimens
 }
 
 /*!
+ * \brief Mask wrapper for indirect memory streams.
+ * \param port The destination port.
+ * \param memory The type of the memory, 0: dma, 1: spad.
+ * \param ind_mode a 3-bit hot vector. xx1: if use index from port, ow 0;
+ *                 x1x: if use offset address from a port, ow the stride2d * outer;
+ *                 1xx: if use length from a port, ow the l1d register.
+ * \param lin_mode 0: 1d indirect stream; 2: 2d indirect stream
+ */
+inline uint64_t INDIRECT_STREAM_MASK(int port,
+                                     int memory,
+                                     int ind,
+                                     int dim,
+                                     MemoryOperation operation) {
+  uint64_t value = dim;
+  value = value << 1;
+  value = (value << 3) | ind;
+  value = (value << 1) | memory;
+  value = (value << 3) | ((int) operation);
+  value = (value << 7) | port;
+  return value;
+}
+
+/*!
  * \brief Instantiate a 1d linear stream. (dtype*)(a + i*stride1d)
  * \param addr The initial value of the state machine.
  * \param stride The stride after accessing.
@@ -300,28 +323,6 @@ inline void SS_2D_CONST(int port, REG v1, REG r1, REG v2, REG r2, REG iters, int
                         /*delta length 3d2d*/(uint64_t) 0,
                         /*stride 3d*/(uint64_t) 0,
                         /*n3d*/iters, port, 0, DSA_Generate, 0, 0, 1, cbyte);
-}
-
-/*!
- * \brief Mask wrapper for indirect memory streams.
- * \param port The destination port.
- * \param memory The type of the memory, 0: dma, 1: spad.
- * \param ind_mode a 3-bit hot vector. xx1: if use index from port, ow 0;
- *                 x1x: if use offset address from a port, ow the stride2d * outer;
- *                 1xx: if use length from a port, ow the l1d register.
- * \param lin_mode 0: 1d indirect stream; 2: 2d indirect stream
- */
-inline uint64_t INDIRECT_STREAM_MASK(int port,
-                                     int memory,
-                                     int ind,
-                                     int dim,
-                                     MemoryOperation operation) {
-  uint64_t value = dim;
-  value = (value << 3) | ind;
-  value = (value << 1) | memory;
-  value = (value << 3) | ((int) operation);
-  value = (value << 7) | port;
-  return value;
 }
 
 /*!
