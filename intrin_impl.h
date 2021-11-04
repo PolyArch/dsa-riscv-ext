@@ -150,9 +150,11 @@ inline uint64_t INDIRECT_STREAM_MASK(int port,
                                      int memory,
                                      int ind,
                                      int dim,
-                                     MemoryOperation operation) {
-  uint64_t value = dim;
-  value = value << 1;
+                                     MemoryOperation operation,
+                                     bool penetrate,
+                                     bool associate) {
+  uint64_t value = dim | (penetrate << 1);
+  value = (value << 1) | (associate);
   value = (value << 3) | ind;
   value = (value << 1) | memory;
   value = (value << 3) | ((int) operation);
@@ -330,11 +332,11 @@ inline void SS_2D_CONST(int port, REG v1, REG r1, REG v2, REG r2, REG iters, int
  */
 inline void INSTANTIATE_1D_INDIRECT(int target_port, int target_type, int idx_port, int index_type,
                                     REG start, REG stride1d, REG len, int memory,
-                                    MemoryOperation operation) {
+                                    MemoryOperation operation, bool penetrate, bool associate = false) {
   CONFIG_PARAM(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);
   CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, DTYPE_MASK(target_type, 0, index_type), 0);
   CONFIG_PARAM(DSARF::I1D, stride1d, 0);
-  auto value = INDIRECT_STREAM_MASK(target_port, memory, 1, 0, operation);
+  auto value = INDIRECT_STREAM_MASK(target_port, memory, 1, 0, operation, penetrate, associate);
   INTRINSIC_R("ss_ind_strm", value);
 }
 
@@ -365,11 +367,9 @@ inline void SS_BUFFET_DEALLOC() {
  *                 x1x: if use offset address from a port, ow the stride2d * outer;
  *                 1xx: if use length from a port, ow the l1d register.
  */
-inline void SS_INDIRECT_2D_READ(int in_port, int dtype,
-                                int start_port, REG start,
-                                int idx_port, int idx_type,
-                                int l1d_port, REG l1d, REG stretch,
-                                int memory) {
+inline void SS_INDIRECT_2D_READ(int in_port, int dtype, int start_port, REG start,
+                                int idx_port, int idx_type, int l1d_port, REG l1d, REG stretch,
+                                int memory, bool penetrate = false, bool associate = false) {
   int ind_mode = (idx_port != -1) | (start_port != -1) * 2 | (l1d_port != -1) * 4;
   idx_port = idx_port == -1 ? 0 : idx_port;
   l1d_port = l1d_port == -1 ? 0 : l1d_port;
@@ -378,6 +378,6 @@ inline void SS_INDIRECT_2D_READ(int in_port, int dtype,
   CONFIG_PARAM(DSARF::INDP, port_mask, 0, DSARF::L1D, l1d, 0);
   CONFIG_PARAM(DSARF::E2D, stretch, 0, DSARF::CSR, DTYPE_MASK(dtype, 0, idx_type), 0);
   CONFIG_PARAM(DSARF::SAR, start, 0);
-  auto value = INDIRECT_STREAM_MASK(in_port, memory, ind_mode, 1, DMO_Read);
+  auto value = INDIRECT_STREAM_MASK(in_port, memory, ind_mode, 1, DMO_Read, penetrate, associate);
   INTRINSIC_R("ss_ind_strm", value);
 }

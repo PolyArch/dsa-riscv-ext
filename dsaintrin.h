@@ -182,8 +182,8 @@ inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n,
 /*!
  * \brief Indirect 1d read.
  */
-#define SS_INDIRECT_READ(in_port, dtype, idx_port, itype, start, stride, len, memory) \
-  INSTANTIATE_1D_INDIRECT(in_port, dtype, idx_port, itype, start, stride, len, memory, DMO_Read)
+#define SS_INDIRECT_READ(in_port, dtype, idx_port, itype, start, stride, len, memory, pene, assoc) \
+  INSTANTIATE_1D_INDIRECT(in_port, dtype, idx_port, itype, start, stride, len, memory, DMO_Read, pene, assoc)
 
 /*!
  * \brief Indirect 1d atomic operation.
