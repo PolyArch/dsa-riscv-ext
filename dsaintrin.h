@@ -189,13 +189,10 @@ inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n,
  * \brief Indirect 1d atomic operation.
  */
 #define SS_INDIRECT_ATOMIC(operand_port, otype, idx_port, itype, start, stride, len, memory, operation) \
-  INSTANTIATE_1D_INDIRECT(operand_port, otype, idx_port, itype, start, stride, len, memory, operation)
+  INSTANTIATE_1D_INDIRECT(operand_port, otype, idx_port, itype, start, stride, len, memory, \
+                          operation, false, false)
 
 // ==================== Above are implemented ====================
-
-// TODO(@were): Confirm the semantics with @vidushi.
-#define SS_ATOMIC_DFG_CONFIG(dfg_addr_cons, dfg_val_cons, dfg_val_out) \
-  __asm__ __volatile__("ss_atom_op %0, %1, %2" : : "r"(dfg_addr_cons), "r"(dfg_val_cons), "i"(dfg_val_out << 1 | 0))
 
 /*!
  * \brief Configure repeat register of the next instantiated input stream.
