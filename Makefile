@@ -1,9 +1,12 @@
 RISCV_GNU_TOOLCHAIN ?= ../riscv-gnu-toolchain
 
-all: riscv-dsa.h riscv-dsa.c auto-patch.py install-header RISCVInstrInfoSS.td
+all: chipyard RISCVInstrInfoSS.td
+
+.PHONY: chipyard
+chipyard: riscv-dsa.h riscv-dsa.c auto-patch.py install-header
 	cd $(RISCV_GNU_TOOLCHAIN)/riscv-binutils && git stash && git stash clear
 	./auto-patch.py riscv-dsa.h $(RISCV_GNU_TOOLCHAIN)/riscv-binutils/include/opcode/riscv-opc.h \
-                        riscv-dsa.c $(RISCV_GNU_TOOLCHAIN)/riscv-binutils/opcodes/riscv-opc.c
+		riscv-dsa.c $(RISCV_GNU_TOOLCHAIN)/riscv-binutils/opcodes/riscv-opc.c
 
 .PHONY: opcodes-dsa
 opcodes-dsa riscv-dsa.c:%: isa.ext
