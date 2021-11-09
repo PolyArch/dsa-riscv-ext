@@ -153,8 +153,9 @@ inline uint64_t INDIRECT_STREAM_MASK(int port,
                                      MemoryOperation operation,
                                      bool penetrate,
                                      bool associate) {
-  uint64_t value = dim | (penetrate << 1);
-  value = (value << 1) | (associate);
+  uint64_t value = associate;
+  value = (value << 1) | dim;
+  value = (value << 1) | penetrate;
   value = (value << 3) | ind;
   value = (value << 1) | memory;
   value = (value << 3) | ((int) operation);
