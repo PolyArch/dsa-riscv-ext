@@ -204,14 +204,15 @@ inline void SS_CONST(int port, REG value, REG n, int cbyte = 8) {
 
 
 /*! \brief Insert a barrier for the accelerator. Refer rf.h to see the masks. */
-inline void SS_WAIT(uint64_t mask) {
-  INTRINSIC_RI("ss_wait", (uint64_t) 0, mask);
+inline void SS_WAIT(REG mask) {
+  INTRINSIC_RI("ss_wait", mask, (uint64_t) 0);
 }
 
 
 /*! \brief Block the control host and wait everything done on the accelerator. */
 inline void SS_WAIT_ALL() {
-  SS_WAIT(~0ull);
+  REG all_ones(~0ull);
+  SS_WAIT(all_ones);
 }
 
 
@@ -382,3 +383,4 @@ inline void SS_INDIRECT_2D_READ(int in_port, int dtype, int start_port, REG star
   auto value = INDIRECT_STREAM_MASK(in_port, memory, ind_mode, 1, DMO_Read, penetrate, associate);
   INTRINSIC_R("ss_ind_strm", value);
 }
+
