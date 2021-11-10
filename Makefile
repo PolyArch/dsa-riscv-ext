@@ -1,7 +1,12 @@
-all: riscv-dsa.h riscv-dsa.c auto-patch.py install-header RISCVInstrInfoSS.td
-	cd ../riscv-gnu-toolchain/riscv-binutils && git stash && git stash clear
-	./auto-patch.py riscv-dsa.h ../riscv-gnu-toolchain/riscv-binutils/include/opcode/riscv-opc.h \
-                        riscv-dsa.c ../riscv-gnu-toolchain/riscv-binutils/opcodes/riscv-opc.c
+RISCV_GNU_TOOLCHAIN ?= ../riscv-gnu-toolchain
+
+all: chipyard RISCVInstrInfoSS.td
+
+.PHONY: chipyard
+chipyard: riscv-dsa.h riscv-dsa.c auto-patch.py
+	cd $(RISCV_GNU_TOOLCHAIN)/riscv-binutils && git stash && git stash clear
+	./auto-patch.py riscv-dsa.h $(RISCV_GNU_TOOLCHAIN)/riscv-binutils/include/opcode/riscv-opc.h \
+		riscv-dsa.c $(RISCV_GNU_TOOLCHAIN)/riscv-binutils/opcodes/riscv-opc.c
 
 .PHONY: opcodes-dsa
 opcodes-dsa riscv-dsa.c:%: isa.ext
@@ -34,5 +39,5 @@ clean:
 	rm -f $(SS_TOOLS)/include/intrin_impl.h
 	rm -rf $(SS_TOOLS)/include/dsa-ext/
 	rm -f ../llvm-project/llvm/lib/Target/RISCV/RISCVInstrInfoSS.td
-	cd ../riscv-gnu-toolchain/riscv-binutils && git stash && git stash clear
+	cd $(RISCV_GNU_TOOLCHAIN)/riscv-binutils && git stash && git stash clear
 

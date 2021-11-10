@@ -90,6 +90,8 @@ const int REG_DEFAULT[] = {
 
 enum Padding {
   DP_NoPadding,
+  DP_PostStreamZero,
+  DP_PostStreamPredOff,
   DP_PostStrideZero,
   DP_PreStrideZero,
   DP_PostStridePredOff,

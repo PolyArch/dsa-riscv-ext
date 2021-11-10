@@ -67,26 +67,22 @@ inline void SS_STREAM_RESET() {
  * \param dtype The direct memory access data type. [0:1]
  * \param const_type The const stream data type. [2:3]
  * \param index_type The indirect index data type. [4:5]
- * \param operand_type The indirect operand data type. [6:7]
- * \param offset_type The indirect starting address data type. [8:9]
- * \param l1d_type The indirect inner dimension length data type. [10:11]
+ * \param offset_type The indirect starting address data type. [6:7]
+ * \param l1d_type The indirect inner dimension length data type. [8:9]
  */
 inline uint64_t DTYPE_MASK(int dtype = 0,
                            int const_type = 0,
                            int index_type = 0,
-                           int operand_type = 0,
                            int offset_type = 0,
                            int l1d_type = 0) {
   int direct_ = _LOG2(dtype);
   int const_ = _LOG2(const_type);
   int index_ = _LOG2(index_type);
-  int operand_ = _LOG2(operand_type);
   int offset_ = _LOG2(offset_type);
   int l1d_ = _LOG2(l1d_type);
   uint64_t value = 0;
   value = (value << 2) | l1d_;
   value = (value << 2) | offset_;
-  value = (value << 2) | operand_;
   value = (value << 2) | index_;
   value = (value << 2) | const_;
   value = (value << 2) | direct_;
@@ -142,6 +138,32 @@ inline uint64_t LINEAR_STREAM_MASK(int port, int padding, int action, int dimens
 }
 
 /*!
+ * \brief Mask wrapper for indirect memory streams.
+ * \param port The destination port.
+ * \param memory The type of the memory, 0: dma, 1: spad.
+ * \param ind_mode a 3-bit hot vector. xx1: if use index from port, ow 0;
+ *                 x1x: if use offset address from a port, ow the stride2d * outer;
+ *                 1xx: if use length from a port, ow the l1d register.
+ * \param lin_mode 0: 1d indirect stream; 2: 2d indirect stream
+ */
+inline uint64_t INDIRECT_STREAM_MASK(int port,
+                                     int memory,
+                                     int ind,
+                                     int dim,
+                                     MemoryOperation operation,
+                                     bool penetrate,
+                                     bool associate) {
+  uint64_t value = associate;
+  value = (value << 1) | dim;
+  value = (value << 1) | penetrate;
+  value = (value << 3) | ind;
+  value = (value << 1) | memory;
+  value = (value << 3) | ((int) operation);
+  value = (value << 7) | port;
+  return value;
+}
+
+/*!
  * \brief Instantiate a 1d linear stream. (dtype*)(a + i*stride1d)
  * \param addr The initial value of the state machine.
  * \param stride The stride after accessing.
@@ -182,14 +204,15 @@ inline void SS_CONST(int port, REG value, REG n, int cbyte = 8) {
 
 
 /*! \brief Insert a barrier for the accelerator. Refer rf.h to see the masks. */
-inline void SS_WAIT(uint64_t mask) {
-  INTRINSIC_RI("ss_wait", (uint64_t) 0, mask);
+inline void SS_WAIT(REG mask) {
+  INTRINSIC_RI("ss_wait", mask, (uint64_t) 0);
 }
 
 
 /*! \brief Block the control host and wait everything done on the accelerator. */
 inline void SS_WAIT_ALL() {
-  SS_WAIT(~0ull);
+  REG all_ones(~0ull);
+  SS_WAIT(all_ones);
 }
 
 
@@ -307,34 +330,15 @@ inline void SS_2D_CONST(int port, REG v1, REG r1, REG v2, REG r2, REG iters, int
 }
 
 /*!
- * \brief Mask wrapper for indirect memory streams.
- * \param port The destination port.
- * \param memory The type of the memory, 0: dma, 1: spad.
- * \param ind_mode a 3-bit hot vector. xx1: if use index from port,
- *                 x1x: if use 1d length from a port or the l1d register,
- *                 1xx: if use 2d length from a port or the l2d register.
- * \param lin_mode 0: 1d indirect stream; 2: 2d indirect stream
+ * \brief Instantiate a 1d indirect stream a[b[i]]
  */
-inline uint64_t INDIRECT_STREAM_MASK(int port,
-                                     int memory,
-                                     int ind,
-                                     int dim,
-                                     MemoryOperation operation) {
-  uint64_t value = dim;
-  value = (value << 3) | ind;
-  value = (value << 1) | memory;
-  value = (value << 3) | ((int) operation);
-  value = (value << 7) | port;
-  return value;
-}
-
 inline void INSTANTIATE_1D_INDIRECT(int target_port, int target_type, int idx_port, int index_type,
                                     REG start, REG stride1d, REG len, int memory,
-                                    MemoryOperation operation) {
+                                    MemoryOperation operation, bool penetrate, bool associate = false) {
   CONFIG_PARAM(DSARF::INDP, idx_port, 0, DSARF::SAR, start, 0);
   CONFIG_PARAM(DSARF::L1D, len, 0, DSARF::CSR, DTYPE_MASK(target_type, 0, index_type), 0);
   CONFIG_PARAM(DSARF::I1D, stride1d, 0);
-  auto value = INDIRECT_STREAM_MASK(target_port, memory, 1, 0, operation);
+  auto value = INDIRECT_STREAM_MASK(target_port, memory, 1, 0, operation, penetrate, associate);
   INTRINSIC_R("ss_ind_strm", value);
 }
 
@@ -359,12 +363,24 @@ inline void SS_BUFFET_DEALLOC() {
   SS_BUFFET_ALLOC(-1, -1);
 }
 
-inline void SS_INDIRECT_2D_READ(int in_port, int start_port, int idx_port, int dtype,
-                                int ind_mode, int l1d_port, REG l1d, REG stretch,
-                                int memory) {
-  CONFIG_PARAM(DSARF::INDP, (idx_port) | (l1d_port << 7), 0,
-               DSARF::L1D, l1d, 0);
-  CONFIG_PARAM(DSARF::E2D, stretch, 0, DSARF::CSR, (dtype) << 4, 0);
-  auto value = INDIRECT_STREAM_MASK(in_port, memory, 1, 1, DMO_Read);
+/*!
+ * \brief Instantiate a 2-d indirect stream.
+ * \param ind_mode a 3-bit hot vector. xx1: if use index from port, ow 0;
+ *                 x1x: if use offset address from a port, ow the stride2d * outer;
+ *                 1xx: if use length from a port, ow the l1d register.
+ */
+inline void SS_INDIRECT_2D_READ(int in_port, int dtype, int start_port, REG start,
+                                int idx_port, int idx_type, int l1d_port, REG l1d, REG stretch,
+                                int memory, bool penetrate = false, bool associate = false) {
+  int ind_mode = (idx_port != -1) | (start_port != -1) * 2 | (l1d_port != -1) * 4;
+  idx_port = idx_port == -1 ? 0 : idx_port;
+  l1d_port = l1d_port == -1 ? 0 : l1d_port;
+  start_port = start_port == -1 ? 0 : start_port;
+  int port_mask = (idx_port) | (start_port << 7) | (l1d_port << 14);
+  CONFIG_PARAM(DSARF::INDP, port_mask, 0, DSARF::L1D, l1d, 0);
+  CONFIG_PARAM(DSARF::E2D, stretch, 0, DSARF::CSR, DTYPE_MASK(dtype, 0, idx_type), 0);
+  CONFIG_PARAM(DSARF::SAR, start, 0);
+  auto value = INDIRECT_STREAM_MASK(in_port, memory, ind_mode, 1, DMO_Read, penetrate, associate);
   INTRINSIC_R("ss_ind_strm", value);
 }
+
