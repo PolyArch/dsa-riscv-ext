@@ -205,8 +205,8 @@ inline void SS_CONST(int port, REG value, REG n, int cbyte = 8) {
 
 /*! \brief Insert a barrier for the accelerator. Refer rf.h to see the masks. */
 inline void SS_WAIT(REG mask) {
-  REG res;
-  INTRINSIC_DRI("ss_wait", res, mask, (uint64_t) 0);
+  REG x0((uint64_t) 0);
+  INTRINSIC_DRI("ss_wait", x0, mask, (uint64_t) 0);
 }
 
 
