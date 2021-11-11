@@ -3,5 +3,5 @@ ss_ind_strm   S rs1           2 6 2
 ss_wr_rd      S rs1           3 6 2
 ss_cfg_port   S rs1,imm       0 2 2
 ss_cfg_param  S rs1,rs2,imm   0 2 3
-ss_wait       I rd,imm        1 2 6
+ss_wait       I rd,rs1,imm    1 2 6
 ss_recv       I rd,rs1,imm    0 2 6
