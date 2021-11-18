@@ -23,7 +23,6 @@ MACRO(ILV)       // Indirect Length of Value stream
 MACRO(BR)        // allocated Buffet address Range encoded in 32 bits
 MACRO(BSR)       // Buffet State Register encodes buffet configuration info in 32 bits
 MACRO(OFL)       // OFfset List (up to 4) accessed by an indirect stream
-MACRO(BMSS)      // The BitMask of Stream Status.
 MACRO(RESERVED0)
 MACRO(RESERVED1)
 MACRO(RESERVED2)
@@ -31,4 +30,5 @@ MACRO(RESERVED3)
 MACRO(RESERVED4)
 MACRO(RESERVED5)
 MACRO(RESERVED6)
+MACRO(RESERVED7)
 MACRO(TOTAL_REG)

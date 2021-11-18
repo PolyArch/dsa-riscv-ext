@@ -10,7 +10,8 @@ def gather_lines(a, cond):
     for i, j in enumerate(a):
         if cond(j):
             res.append(i)
-    assert res[-1] - res[0] + 1 == len(res), 'Range not continuous'
+    print(res)
+    assert res[-1] - res[0] + 1 == len(res), (f'Range not continuous {res}')
     return res[0], res[-1]
 
 with open(sys.argv[1]) as f:
