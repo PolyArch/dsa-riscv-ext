@@ -224,7 +224,7 @@ inline void SS_WAIT_ALL() {
  */
 inline REG SS_RECV(int port, int dtype = 8) {
   int mask = port;
-  CONFIG_PARAM(DSARF::CSR, DTYPE_MASK(target_type, 0, index_type), 0);
+  CONFIG_PARAM(DSARF::CSR, DTYPE_MASK(dtype), 0);
   mask <<= 5;
   mask |= 1;
   REG res;
