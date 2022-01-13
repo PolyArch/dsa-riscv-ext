@@ -90,12 +90,12 @@ const int REG_DEFAULT[] = {
 
 enum Padding {
   DP_NoPadding,
-  DP_PostStreamZero,
-  DP_PostStreamPredOff,
-  DP_PostStrideZero,
-  DP_PreStrideZero,
-  DP_PostStridePredOff,
-  DP_PreStridePredOff,
+  DP_PostStreamZero,    	// Pad at the end of whole stream with zero
+  DP_PostStreamPredOff, 	// Pad at the end of whole stream with invalid value
+  DP_Post2DStreamZero,  	// Pad at the end of 2D stream with zero
+  DP_Post2DStreamPredOff,	// Pad at the end of 2D stream with invalid value
+  DP_PostStrideZero,		// Pad at the end of 1D stream with zero
+  DP_PostStridePredOff,		// Pad at the end of 1D stream with invalid value
 };
 
 enum BarrierFlag {
