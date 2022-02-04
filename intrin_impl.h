@@ -67,18 +67,18 @@ inline void SS_STREAM_RESET() {
  * \param dtype The direct memory access data type. [0:1]
  * \param const_type The const stream data type. [2:3]
  * \param index_type The indirect index data type. [4:5]
- * \param offset_type The indirect starting address data type. [6:7]
+ * \param ind_s2d The indirect stride2d address data type. [6:7]
  * \param l1d_type The indirect inner dimension length data type. [8:9]
  */
 inline uint64_t DTYPE_MASK(int dtype = 0,
                            int const_type = 0,
                            int index_type = 0,
-                           int offset_type = 0,
+                           int ind_s2d = 0,
                            int l1d_type = 0) {
   int direct_ = _LOG2(dtype);
   int const_ = _LOG2(const_type);
   int index_ = _LOG2(index_type);
-  int offset_ = _LOG2(offset_type);
+  int offset_ = _LOG2(ind_s2d);
   int l1d_ = _LOG2(l1d_type);
   uint64_t value = 0;
   value = (value << 2) | l1d_;
@@ -364,24 +364,88 @@ inline void SS_BUFFET_DEALLOC() {
 }
 
 /*!
- * \brief Instantiate a 2-d indirect stream.
- * \param ind_mode a 3-bit hot vector. xx1: if use index from port, ow 0;
- *                 x1x: if use offset address from a port, ow the stride2d * outer;
- *                 1xx: if use length from a port, ow the l1d register.
+ * \brief The attributes of a indirect 2d stream.
+ * \code{c}
+ *   for (i=0; i<m; ++i)
+ *     for (j=0; j<n[i]+i*stretch; ++j)
+ *       a[b[i]+c[j]]
+ * \endcode
  */
-inline void SS_INDIRECT_2D_READ(int in_port, int dtype, int start_port, REG start,
-                                int idx_port, int idx_type, int l1d_port, REG l1d, REG stretch,
-                                int memory, bool penetrate = false, bool associate = false,
-                                int ctype = 0) {
+struct Indirect2DAttr {
+  /*!
+   * \brief The port destination.
+   */
+  int dest_port;
+  /*!
+   * \brief The data type of this stream.
+   */
+  int dtype;
+  /*!
+   * \brief The port and type of b[i].
+   */
+  int start_port{-1}, start_dtype{0};
+  /*!
+   * \brief The address of a.
+   */
+  REG start;
+  /*!
+   * \brief The port and type of c[j].
+   */
+  int idx_port{-1}, idx_dtype{0};
+  /*!
+   * \brief The port and type of n[i].
+   */
+  int l1d_port{-1}, l1d_dtype{0};
+  /*!
+   * \brief The inner dimension can optionally be a constant when l1d_port is -1.
+   */
+  REG l1d;
+  /*!
+   * \brief The value of m.
+   */
+  REG l2d;
+  /*!
+   * \brief The value of stretch above.
+   */
+  REG stretch{(uint64_t) 0};
+  /*!
+   * \brief The type of memory.
+   */
+  int memory;
+  /*!
+   * \brief Index stream state penetration.
+   */
+  bool penetrate{false};
+  /*!
+   * \brief Index stream state association.
+   */
+  bool associate{false};
+  /*!
+   * \brief If a address generation, the dtype of the stream.
+   */
+  int ctype{0};
+};
+
+/*!
+ * \brief Instantiate a 2-d indirect stream.
+ * \param i2a The attributes of an indirect 2d stream.
+ */
+inline void SS_INDIRECT_2D_READ(const Indirect2DAttr *i2a) {
+  int idx_port = i2a->idx_port;
+  int start_port = i2a->start_port;
+  int l1d_port = i2a->l1d_port;
   int ind_mode = (idx_port != -1) | (start_port != -1) * 2 | (l1d_port != -1) * 4;
   idx_port = idx_port == -1 ? 0 : idx_port;
   l1d_port = l1d_port == -1 ? 0 : l1d_port;
   start_port = start_port == -1 ? 0 : start_port;
   int port_mask = (idx_port) | (start_port << 7) | (l1d_port << 14);
-  CONFIG_PARAM(DSARF::INDP, port_mask, 0, DSARF::L1D, l1d, 0);
-  CONFIG_PARAM(DSARF::E2D, stretch, 0, DSARF::CSR, DTYPE_MASK(dtype, ctype, idx_type), 0);
-  CONFIG_PARAM(DSARF::SAR, start, 0);
-  auto value = INDIRECT_STREAM_MASK(in_port, memory, ind_mode, 1, DMO_Read, penetrate, associate);
+  CONFIG_PARAM(DSARF::INDP, port_mask, 0, DSARF::L1D, i2a->l1d, 0);
+  int dtype_mask =
+    DTYPE_MASK(i2a->dtype, i2a->ctype, i2a->idx_dtype, i2a->start_dtype, i2a->l1d_dtype);
+  CONFIG_PARAM(DSARF::E2D, i2a->stretch, 0, DSARF::CSR, dtype_mask, 0);
+  CONFIG_PARAM(DSARF::SAR, i2a->start, 0);
+  auto value = INDIRECT_STREAM_MASK(i2a->dest_port, i2a->memory, ind_mode, 1, DMO_Read,
+                                    i2a->penetrate, i2a->associate);
   INTRINSIC_R("ss_ind_strm", value);
 }
 

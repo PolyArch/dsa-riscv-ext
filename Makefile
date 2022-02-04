@@ -1,4 +1,4 @@
-RISCV_GNU_TOOLCHAIN ?= ../riscv-gnu-toolchain
+RISCV_GNU_TOOLCHAIN ?= ../chipyard/toolchains/riscv-tools/riscv-gnu-toolchain
 
 all: chipyard RISCVInstrInfoSS.td
 
