@@ -1,6 +1,6 @@
-RISCV_GNU_TOOLCHAIN ?= ../riscv-gnu-toolchain
+RISCV_GNU_TOOLCHAIN ?= ../chipyard/toolchains/riscv-tools/riscv-gnu-toolchain
 
-all: chipyard RISCVInstrInfoSS.td
+all: chipyard RISCVInstrInfoSS.td install-header
 
 .PHONY: chipyard
 chipyard: riscv-dsa.h riscv-dsa.c auto-patch.py
@@ -22,14 +22,14 @@ RISCVInstrInfoSS.td: isa.ext
 
 .PHONY: install-header
 install-header:
-	mkdir -p $(RISCV)/include/dsa-ext/
-	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(RISCV)/include/ss_insts.h
-	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(RISCV)/include/dsaintrin.h
-	ln -sf `git rev-parse --show-toplevel`/intrin_impl.h $(RISCV)/include/intrin_impl.h
-	ln -sf `git rev-parse --show-toplevel`/spec.h $(RISCV)/include/dsa-ext/spec.h
-	ln -sf `git rev-parse --show-toplevel`/spec.attr $(RISCV)/include/dsa-ext/spec.attr
-	ln -sf `git rev-parse --show-toplevel`/rf.h $(RISCV)/include/dsa-ext/rf.h
-	ln -sf `git rev-parse --show-toplevel`/rf.def $(RISCV)/include/dsa-ext/rf.def
+	mkdir -p $(SS_TOOLS)/include/dsa-ext/
+	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(SS_TOOLS)/include/ss_insts.h
+	ln -sf `git rev-parse --show-toplevel`/dsaintrin.h $(SS_TOOLS)/include/dsaintrin.h
+	ln -sf `git rev-parse --show-toplevel`/intrin_impl.h $(SS_TOOLS)/include/intrin_impl.h
+	ln -sf `git rev-parse --show-toplevel`/spec.h $(SS_TOOLS)/include/dsa-ext/spec.h
+	ln -sf `git rev-parse --show-toplevel`/spec.attr $(SS_TOOLS)/include/dsa-ext/spec.attr
+	ln -sf `git rev-parse --show-toplevel`/rf.h $(SS_TOOLS)/include/dsa-ext/rf.h
+	ln -sf `git rev-parse --show-toplevel`/rf.def $(SS_TOOLS)/include/dsa-ext/rf.def
 
 clean:
 	rm -f opcodes-dsa
