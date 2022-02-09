@@ -443,7 +443,7 @@ inline void SS_INDIRECT_2D_READ(const Indirect2DAttr *i2a) {
   int dtype_mask =
     DTYPE_MASK(i2a->dtype, i2a->ctype, i2a->idx_dtype, i2a->start_dtype, i2a->l1d_dtype);
   CONFIG_PARAM(DSARF::E2D, i2a->stretch, 0, DSARF::CSR, dtype_mask, 0);
-  CONFIG_PARAM(DSARF::SAR, i2a->start, 0);
+  CONFIG_PARAM(DSARF::SAR, i2a->start, 0, DSARF::L2D, i2a->l2d, 0);
   auto value = INDIRECT_STREAM_MASK(i2a->dest_port, i2a->memory, ind_mode, 1, DMO_Read,
                                     i2a->penetrate, i2a->associate);
   INTRINSIC_R("ss_ind_strm", value);
