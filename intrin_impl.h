@@ -242,6 +242,7 @@ inline REG SS_RECV(int port, int dtype = 8) {
  */
 inline void SS_RECURRENCE(int oport, int iport, REG n, int dtype = 8) {
   CONFIG_PARAM(DSARF::L1D, n, false, DSARF::CSR, _LOG2(dtype), false);
+  CONFIG_PARAM(DSARF::I1D, (uint64_t) 1, false);
   REG port(iport | (oport << 7));
   INTRINSIC_R("ss_wr_rd", port);
 }
