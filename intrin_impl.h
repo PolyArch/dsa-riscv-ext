@@ -194,7 +194,8 @@ inline void INSTANTIATE_1D_STREAM(REG addr, REG stride, REG length,
  * \param cbyte: The data type of the constant.
  */
 inline void SS_CONST(int port, REG value, REG n, int cbyte = 8) {
-  INSTANTIATE_1D_STREAM(/*Initial*/value, /*Stride*/(uint64_t) 0, /*N*/n,
+  SS_REPEAT_PORT(port, n);
+  INSTANTIATE_1D_STREAM(/*Initial*/value, /*Stride*/(uint64_t) 0, /*N*/1,
                         port, DP_NoPadding, DSA_Generate,
                         /*Memory Operation*/ 0,
                         /*Memory Source*/ 0,
