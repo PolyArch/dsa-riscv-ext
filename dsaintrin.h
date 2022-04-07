@@ -538,6 +538,8 @@
   __asm__ __volatile__("ss_wr_rd %0, %1, %2" : : "r"(num_strides), "r"(2 | 4), "i"((input_port<<6) | (output_port)))
 
 // TODO(@were): Confirm the semantics with @vidushi
+// TODO(@vidushi): What is this 15 for? it gives error when output_port is
+// scheduled to port 15
 #define SS_REM_PORT(output_port, num_elem, mask, remote_port) \
   __asm__ __volatile("ss_rem_port %0, %1, %2" : : "r"(num_elem), "r"(mask), "i"(((output_port<15?output_port:output_port-32)<<7) | (0<<6) | (remote_port<<1) | (0)))
 
@@ -616,7 +618,8 @@
  *                TODO(@were): What happens when something happens in CGRA (is_update).
  */
 #define SS_ATOMIC_SCR_OP(addr_port, val_port, offset, iters, opcode) \
-  __asm__ __volatile__("ss_atom_op %0, %1, %2" : : "r"(offset | addr_port << 24), "r"(iters), "i"((val_port<<2) | opcode))
+  __asm__ __volatile__("ss_atom_op %0, %1, %2" : : "r"(offset | addr_port << 24), "r"(iters), "i"((val_port<<3) | (opcode << 1) | 1))
+  // __asm__ __volatile__("ss_atom_op %0, %1, %2" : : "r"(offset | addr_port << 24), "r"(iters), "i"((val_port<<2) | opcode))
 
 /*!
  * \brief Configure an indirect read stream. Something like a[b[i]*k].
