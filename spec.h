@@ -9,8 +9,7 @@
 
 #pragma once
 
-#include <cstdint>
-#include <string>
+#include <stdint.h>
 
 /*!
  * \brief The max number of DSA lanes supported
@@ -75,8 +74,8 @@ typedef uint64_t addr_t;
 #define SBDT uint64_t           //cgra datatype
 #define SSWORD uint8_t          //dgra datatype
 #define DATA_WIDTH sizeof(SBDT)
-#define SCRATCH_SIZE (16384) //size in bytes -- 16KB
-// #define SCRATCH_SIZE (32768) //size in bytes -- 16KB
+// #define SCRATCH_SIZE (16384) //size in bytes -- 16KB
+#define SCRATCH_SIZE (1048576) //size in bytes -- 1MB
 #define SPU_NET_PACKET_SIZE 64
 #define NUM_SCRATCH_BANKS 64
 
@@ -158,12 +157,3 @@ typedef uint64_t addr_t;
 
 /// }
 
-namespace dsa {
-
-struct Specification {
-#define SPEC_ATTR(TY, ID, VAL) TY ID{VAL};
-#include "./spec.attr"
-#undef SPEC_ATTR
-};
-
-}
