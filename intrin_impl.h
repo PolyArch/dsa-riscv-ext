@@ -351,7 +351,7 @@ inline void INSTANTIATE_1D_INDIRECT(int target_port, int target_type, int idx_po
  */
 inline void SS_BUFFET_ALLOC(int start, int end) {
   int64_t mask = end;
-  mask <<= 16;
+  mask <<= 32;
   mask |= start;
   CONFIG_PARAM(DSARF::BR, mask, 0);
 }
