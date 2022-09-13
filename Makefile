@@ -18,7 +18,7 @@ riscv-dsa.h: opcodes-dsa
 
 .PHONY: RISCVInstrInfoSS.td
 RISCVInstrInfoSS.td: isa.ext
-	./llvm.py $^ > ../llvm-project/llvm/lib/Target/RISCV/$@
+	./llvm.py $^ > ../dsa-llvm-project/llvm/lib/Target/RISCV/$@
 
 .PHONY: install-header
 install-header:
@@ -38,6 +38,6 @@ clean:
 	rm -f $(SS_TOOLS)/include/dsaintrin.h
 	rm -f $(SS_TOOLS)/include/intrin_impl.h
 	rm -rf $(SS_TOOLS)/include/dsa-ext/
-	rm -f ../llvm-project/llvm/lib/Target/RISCV/RISCVInstrInfoSS.td
+	rm -f ../dsa-llvm-project/llvm/lib/Target/RISCV/RISCVInstrInfoSS.td
 	cd $(RISCV_GNU_TOOLCHAIN)/riscv-binutils && git stash && git stash clear
 
