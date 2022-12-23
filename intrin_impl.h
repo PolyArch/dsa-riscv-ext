@@ -103,6 +103,25 @@ inline void SS_CONFIG_PORT(int port, int field, REG value) {
   INTRINSIC_RI("ss_cfg_port", value, mask);
 }
 
+/*!
+ * \brief Configure repeat register and taskflow characteristics of the next instantiated input stream.
+ * \param port The port to be configured.
+ * \param field The field of the port to be configured.
+ * \param value The value to the field to be set
+ * \param type True means bypass stream while False means standard stream
+ * \param outer_port The vector port containing data for stream arguments
+ * \param arg_mask The mask of which arguments should be taken from outer_port.
+ */
+inline void SS_CONFIG_PORT_STREAM(int port, int field, REG value, bool type, int outer_port, uint8_t arg_mask) {
+  uint64_t port_mask = port;
+  port_mask <<= 1;
+  port_mask = (port_mask << 4) | (field);
+  uint64_t stream_mask = outer_port;
+  stream_mask <<= 1;
+  stream_mask = stream_mask | type | (arg_mask << 5);
+  INTRINSIC_RRI("ss_cfg_port", value, stream_mask, port_mask);
+}
+
 /*! \brief The next stream instantiated from this port will be repeated n times. */
 inline void SS_REPEAT_PORT(int port, REG n) {
   SS_CONFIG_PORT(port, DPF_PortRepeat, MUL(n, 1 << DSA_REPEAT_DIGITAL_POINT));
@@ -217,6 +236,13 @@ inline void SS_WAIT_ALL() {
   SS_WAIT(all_ones);
 }
 
+// TODO: vidushi: What does =r stands for?
+/*! \brief Block the control host and wait everything done on N accelerators. */
+inline void SS_GLOBAL_WAIT(int num_threads) {
+  REG x0((uint64_t) 0);
+  REG all_ones(~0ull);
+  INTRINSIC_DRI("ss_wait", x0, all_ones, (uint64_t) num_threads);
+}
 
 /*!
  * \brief Write a value from CGRA to the register file.
@@ -246,6 +272,23 @@ inline void SS_RECURRENCE(int oport, int iport, REG n, int dtype = 8) {
   CONFIG_PARAM(DSARF::I1D, (uint64_t) 1, false);
   REG port(iport | (oport << 7));
   INTRINSIC_R("ss_wr_rd", port);
+}
+
+/*!
+ * \brief Forward value from output port of current accel-core to the input port of one or more accelerator cores.
+ * \param output_port: The data source port.
+ * \param input_port: The destination data port.
+ * \param n: The number of data forwarded.
+ * \param dtype: The data type of each element forwarded.
+ * \param mask: The set bit represents the receiver core.
+ */
+// FIXME (@vidushi): I am not sure I kno about cfg_param...!!!
+inline void SS_REM_PORT(int oport, int iport, REG n, int dtype = 8, uint64_t mcast_mask = 0) {
+  REG x0((uint64_t) 0);
+  CONFIG_PARAM(DSARF::L1D, n, false, DSARF::CSR, _LOG2(dtype), false);
+  CONFIG_PARAM(DSARF::I1D, (uint64_t) 1, false);
+  REG port(iport | (oport << 7));
+  INTRINSIC_RRI("ss_wr_rd", port, mcast_mask, x0);
 }
 
 

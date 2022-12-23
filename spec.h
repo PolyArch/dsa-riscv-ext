@@ -135,6 +135,21 @@ typedef uint64_t addr_t;
 #define NUM_TASK_DEP_CHARAC 6
 #define NUM_TASK_TYPE_CHARAC 4
 
+// taskstream parameters
+#define DEFAULT_TASK_CONTROLLER_LENGTH 1024
+#define MULTICAST_BATCH 4
+#define DEFAULT_INTER_ITER_DEPTH 2
+#define DEFAULT_COALESCE_WIDTH 4
+#define MAX_COALESCE_WIDTH 16
+#define DEFAULT_DATA_REPLICATION_COUNT 2
+// print the issued streams, cgra input and output ports for only these cores
+#define DEFAULT_DEBUG_CORE (0)
+#define DEFAULT_DEBUG_PORT (-1)
+#define START_IND_PORTS (23)
+#define STOP_IND_PORTS  (32)
+#define CMD_QUEUE_SIZE (1024) // 16 (size in num elements)
+#define STREAM_ARGS_MASK_SIZE (7)
+
 //bit std::vectors for sb_wait
 #define WAIT_SCR_WR       1 //wait for just scratch
 #define WAIT_CMP          2 //wait for everything to complete
@@ -145,6 +160,7 @@ typedef uint64_t addr_t;
 #define WAIT_SCR_WR_DF    64//wait for N remote writes to be done, delay the core
 #define GLOBAL_WAIT       128//wait for all cores (threads) to be done
 #define STREAM_WAIT       66//wait only for streams to be done
+#define WAIT_TASKS        8//wait only for tasks to be done (special kinds instead of recv)
 
 
 //fill modes

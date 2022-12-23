@@ -134,7 +134,6 @@ inline void SS_DMA_2D_WRITE(REG addr, REG stride, REG bytes, REG stretch, REG n,
                         DMT_DMA, dtype, 0);
 }
 
-
 /*!
  * \brief Legacy wrapper of a 2-d stream with stretch.
  */
