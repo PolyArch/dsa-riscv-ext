@@ -1,12 +1,13 @@
-RISCV_GNU_TOOLCHAIN ?= ../chipyard/toolchains/riscv-tools/riscv-gnu-toolchain
+RISCV_GNU_TOOLCHAIN ?= ../ss-riscv-tools/riscv-tools-feedstock/riscv-gnu-toolchain
 
-all: chipyard RISCVInstrInfoSS.td install-header
+all: patch-gnu RISCVInstrInfoSS.td install-header
 
-.PHONY: chipyard
-chipyard: riscv-dsa.h riscv-dsa.c auto-patch.py
+.PHONY: patch-gnu
+patch-gnu: riscv-dsa.h riscv-dsa.c auto-patch.py
 	cd $(RISCV_GNU_TOOLCHAIN)/riscv-binutils && git stash && git stash clear
 	./auto-patch.py riscv-dsa.h $(RISCV_GNU_TOOLCHAIN)/riscv-binutils/include/opcode/riscv-opc.h \
 		riscv-dsa.c $(RISCV_GNU_TOOLCHAIN)/riscv-binutils/opcodes/riscv-opc.c
+	cd $(RISCV_GNU_TOOLCHAIN)/riscv-binutils && git add include opcodes && git commit -m "[ucla] apply patch for stream specialization instruction"
 
 .PHONY: opcodes-dsa
 opcodes-dsa riscv-dsa.c:%: isa.ext
