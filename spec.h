@@ -131,8 +131,8 @@ typedef uint64_t addr_t;
 #define CONFIG_STREAM (128)
 
 #define NUM_GROUPS (8)
-#define NUM_TASK_DEP_CHARAC 6
-#define NUM_TASK_TYPE_CHARAC 4
+#define NUM_TASK_DEP_CHARAC 12
+#define NUM_TASK_TYPE_CHARAC 7
 
 //bit std::vectors for sb_wait
 #define WAIT_SCR_WR       1 //wait for just scratch
